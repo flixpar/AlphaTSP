@@ -1,21 +1,11 @@
 import argparse
-
-from tsp import TSP
-import solvers
-import util
+from alphatsp.experiments import *
 
 def main(args):
 	if args.experiment == "nearest_greedy":
-		nearest_greedy()
+		nearest_greedy.run()
 	else:
 		raise ValueError("Invalid experiment selection.")
-
-def nearest_greedy():
-	tsp = TSP(100, 2)
-	sol, sol_length = solvers.nearest_greedy(tsp)
-	print(f"Tour length: {sol_length}")
-	print(f"Tour: {sol}")
-	util.display_tour(tsp, sol)
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()
