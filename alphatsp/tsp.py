@@ -4,7 +4,12 @@ class TSP:
 
 	def __init__(self, n, d=2, points="random_euclidean"):
 		self.n, self.d = n, d
-		self.points = random_euclidean_tsp(n, d)
+		if isinstance(points, (list, np.ndarray)):
+			self.points = points
+		elif points == "random_euclidean":
+			self.points = random_euclidean_tsp(n, d)
+		else:
+			raise ValueError("Invalid points argument to TSP.")
 
 	def tour_length(self, tour):
 		"""Compute the length of the given tour.

@@ -4,6 +4,8 @@ from alphatsp.experiments import *
 def main(args):
 	if args.experiment == "nearest_greedy":
 		nearest_greedy.run()
+	elif args.experiment == "mcts":
+		mcts_test.run()
 	else:
 		raise ValueError("Invalid experiment selection.")
 
