@@ -143,8 +143,9 @@ def UCT(rootstate, itermax, verbose = False):
 			state.do_move(random.choice(state.get_moves()))
 
 		# Backpropagate
+		res = state.get_result()
 		while node != None: # backpropagate from the expanded node and work back to the root node
-			node.update(state.get_result()) # state is terminal. Update node with result.
+			node.update(res) # state is terminal. Update node with result.
 			node = node.parentNode
 
 	# Output some information about the tree
