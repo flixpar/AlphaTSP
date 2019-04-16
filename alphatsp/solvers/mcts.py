@@ -18,7 +18,7 @@ class TSPState:
 	def clone(self):
 		""" Create a deep clone of this game state.
 		"""
-		st = TSPState(self.points, copy.deepcopy(self.tour))
+		st = TSPState(self.points, copy.copy(self.tour))
 		return st
 
 	def do_move(self, move):
@@ -36,6 +36,11 @@ class TSPState:
 		else:
 			return []
 
+	def has_moves(self):
+		""" Check if there are possible moves in this state.
+		"""
+		return len(self.tour) <= self.n
+
 	def get_result(self):
 		""" Get the game result.
 		"""
@@ -44,9 +49,9 @@ class TSPState:
 	def get_tour_length(self):
 		""" Get the tour length.
 		"""
-		tour_len = 0
-		for i in range(1, len(self.tour)):
-			tour_len += np.linalg.norm(self.points[self.tour[i]] - self.points[self.tour[i-1]], ord=2)
+		points = self.points[self.tour]
+		diffs = np.diff(points, axis=0)
+		tour_len = np.linalg.norm(diffs, axis=1, ord=2).sum()
 		return tour_len
 
 	def __repr__(self):
@@ -123,26 +128,26 @@ def UCT(rootstate, itermax, verbose = False):
 		state = rootstate.clone()
 
 		# Select
-		while node.untriedMoves == [] and node.childNodes != []: # node is fully expanded and non-terminal
+		while (not node.untriedMoves) and node.childNodes: # node is fully expanded and non-terminal
 			node = node.uct_select_child()
 			state.do_move(node.move)
 
 		# Expand
-		if node.untriedMoves != []: # if we can expand (i.e. state/node is non-terminal)
+		if node.untriedMoves: # if we can expand (i.e. state/node is non-terminal)
 			m = random.choice(node.untriedMoves)
 			state.do_move(m)
 			node = node.add_child(m,state) # add child and descend tree
 
-		# Rollout - this can often be made orders of magnitude quicker using a state.GetRandomMove() function
-		while state.get_moves() != []: # while state is non-terminal
+		# Rollout
+		while state.has_moves(): # while state is non-terminal
 			state.do_move(random.choice(state.get_moves()))
 
 		# Backpropagate
 		while node != None: # backpropagate from the expanded node and work back to the root node
-			node.update(state.get_result()) # state is terminal. Update node with result from POV of node.playerJustMoved
+			node.update(state.get_result()) # state is terminal. Update node with result.
 			node = node.parentNode
 
-	# Output some information about the tree - can be omitted
+	# Output some information about the tree
 	if (verbose):
 		print(rootnode.tree_to_string(0))
 		print(rootnode.children_to_string())
