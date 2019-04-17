@@ -16,12 +16,22 @@ class TSP:
 		Arguments:
 			tour {list(int, n)} -- a permutation of the nodes representing a tour
 		Returns:
-			int -- tour length
+			float -- tour length
 		"""
-		tour_len = 0
-		for i in range(1, len(tour)):
-			tour_len += np.linalg.norm(self.points[tour[i]] - self.points[tour[i-1]], ord=2)
+		points = self.points[tour]
+		diffs = np.diff(points, axis=0)
+		tour_len = np.linalg.norm(diffs, axis=1, ord=2).sum()
 		return tour_len
+
+	def payoff(self, tour):
+		"""Compute the payoff of the given tour, a mapping of the tour length to
+		[0,1] where 1 is a better tour.
+		Arguments:
+			tour {list(int, n)} -- a permutation of the nodes representing a tour
+		Returns:
+			float -- tour length
+		"""
+		return ((2 * self.n) - self.tour_length(tour)) / (2 * self.n)
 
 def random_euclidean_tsp(n, d=2):
 	points = np.random.rand(n, d)

@@ -11,13 +11,14 @@ def run():
 	points = np.random.rand(n, d)
 
 	# MCTS Solver
-	state = alphatsp.solvers.mcts.TSPState(points)
-	while state.has_moves():
-		m = alphatsp.solvers.mcts.UCT(rootstate = state, itermax = 1000, verbose = False)
-		state.do_move(m)
-	mcts_payoff = state.get_tour_length()
+	tsp = alphatsp.tsp.TSP(n, d, points=points)
+	node = alphatsp.solvers.mcts.MCTSNode(n=n)
+	while not node.is_leaf():
+		node = alphatsp.solvers.mcts.mcts(node, tsp, 1000)
+	mcts_tour = node.get_tour()
+	mcts_payoff = tsp.tour_length(mcts_tour)
 
-	print(f"MCTS Tour:\t{mcts_payoff},\t{state.tour}")
+	print(f"MCTS Tour:\t{mcts_payoff},\t{mcts_tour}")
 
 	# Nearest neighbor greedy solver
 	tsp = alphatsp.tsp.TSP(n, d, points=points)
