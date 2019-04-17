@@ -61,7 +61,7 @@ class MCTSNode:
 		return self.children[np.argmax(visits)]
 
 
-def mcts(root, tsp, iterations=1000):
+def mcts_node(root, tsp, iterations=1000):
 	node = root
 	for _ in range(iterations):
 		while node.has_children():
@@ -71,3 +71,11 @@ def mcts(root, tsp, iterations=1000):
 			pay = child.simulate(tsp)
 			child.backprop(pay)
 	return root.best_child_score()
+
+def mcts(tsp):
+	node = MCTSNode(n=tsp.n)
+	while not node.is_leaf():
+		node = mcts_node(node, tsp, 1000)
+	mcts_tour = node.get_tour()
+	mcts_payoff = tsp.tour_length(mcts_tour)
+	return mcts_tour, mcts_payoff

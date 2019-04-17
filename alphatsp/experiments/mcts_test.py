@@ -12,13 +12,9 @@ def run():
 
 	# MCTS Solver
 	tsp = alphatsp.tsp.TSP(n, d, points=points)
-	node = alphatsp.solvers.mcts.MCTSNode(n=n)
-	while not node.is_leaf():
-		node = alphatsp.solvers.mcts.mcts(node, tsp, 1000)
-	mcts_tour = node.get_tour()
-	mcts_payoff = tsp.tour_length(mcts_tour)
+	mcts_sol, mvts_sol_length = alphatsp.solvers.mcts.mcts(tsp)
 
-	print(f"MCTS Tour:\t{mcts_payoff},\t{mcts_tour}")
+	print(f"MCTS Tour:\t{mvts_sol_length},\t{mcts_sol}")
 
 	# Nearest neighbor greedy solver
 	tsp = alphatsp.tsp.TSP(n, d, points=points)
