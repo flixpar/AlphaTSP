@@ -6,6 +6,8 @@ def main(args):
 		nearest_greedy.run()
 	elif args.experiment == "mcts":
 		mcts_test.run()
+	elif args.experiment == "exact":
+		exact_test.run()
 	else:
 		raise ValueError("Invalid experiment selection.")
 
