@@ -8,6 +8,8 @@ def main(args):
 		mcts_test.run()
 	elif args.experiment == "exact":
 		exact_test.run()
+	elif args.experiment == "gurobi":
+		gurobi_test.run()
 	else:
 		raise ValueError("Invalid experiment selection.")
 
