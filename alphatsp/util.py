@@ -5,11 +5,11 @@ plt.style.use("seaborn-darkgrid")
 import os, sys
 from contextlib import contextmanager
 
-def display_tour(tsp, tour):
+def display_tour(tsp, tour, title=""):
 	points = tsp.points
 	points = points[tour]
 	plt.plot(points[:,0], points[:,1], 'o-')
-	plt.title("TSP Tour - Nearest Neighbor Greedy")
+	plt.title(title)
 	plt.xlim(0,1)
 	plt.ylim(0,1)
 	plt.show()
