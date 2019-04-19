@@ -2,14 +2,14 @@ import argparse
 from alphatsp.experiments import *
 
 def main(args):
-	if args.experiment == "nearest_greedy":
-		nearest_greedy.run()
+	if args.experiment == "greedy":
+		nearestneighbor.run()
 	elif args.experiment == "mcts":
-		mcts_test.run()
+		mcts.run()
 	elif args.experiment == "exact":
-		exact_test.run()
+		exact.run()
 	elif args.experiment == "gurobi":
-		gurobi_test.run()
+		gurobi.run()
 	elif args.experiment == "insertion":
 		insertion.run()
 	else:
