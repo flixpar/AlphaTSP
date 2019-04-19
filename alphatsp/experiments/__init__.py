@@ -1,1 +1,1 @@
-__all__ = ["nearest_greedy", "mcts_test", "exact_test", "gurobi_test"]
+__all__ = ["nearest_greedy", "mcts_test", "exact_test", "gurobi_test", "insertion"]

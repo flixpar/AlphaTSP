@@ -10,6 +10,8 @@ def main(args):
 		exact_test.run()
 	elif args.experiment == "gurobi":
 		gurobi_test.run()
+	elif args.experiment == "insertion":
+		insertion.run()
 	else:
 		raise ValueError("Invalid experiment selection.")
 
