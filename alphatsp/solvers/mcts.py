@@ -1,26 +1,29 @@
-import numpy as np
 import copy
 import random
+import math
 
 class MCTSNode:
 
-	def __init__(self, p=None, t=[], r=None, n=-1):
+	def __init__(self, p=None, t=[0], r=None, n=-1):
 		self.parent = p
 		self.tour = t
-		self.remaining = r if r is not None else set(range(n))
+		self.remaining = r if r is not None else list(range(1, n))
 		self.visits = 0
 		self.total_score = 0
 		self.avg_score = 0
+		self.c = 0.7
 		self.n = n
 		self.children = []
 
 	def expand(self):
-		for k in self.remaining:
-			t = copy.copy(self.tour)
-			r = copy.copy(self.remaining)
-			t.append(k)
-			r.remove(k)
-			self.children.append(MCTSNode(self, t, r, self.n))
+		k = random.choice(self.remaining)
+		t = copy.copy(self.tour)
+		r = copy.copy(self.remaining)
+		t.append(k)
+		r.remove(k)
+		child = MCTSNode(self, t, r, self.n)
+		self.children.append(child)
+		return child
 
 	def backprop(self, reward):
 		self.visits += 1
@@ -30,9 +33,8 @@ class MCTSNode:
 			self.parent.backprop(reward)
 
 	def simulate(self, tsp):
-		r = list(self.remaining)
-		random.shuffle(r)
-		t = self.tour + r + [self.tour[0]]
+		random.shuffle(self.remaining)
+		t = self.tour + self.remaining + [0]
 		return tsp.payoff(t)
 
 	def has_children(self):
@@ -40,42 +42,43 @@ class MCTSNode:
 
 	def is_leaf(self):
 		return len(self.tour) == self.n
+	
+	def is_fully_expanded(self):
+		return len(self.remaining) == len(self.children)
 
 	def get_tour(self):
 		return self.tour + [self.tour[0]]
 
 	def best_child_score(self):
-		scores = [child.avg_score for child in self.children]
-		scores = np.asarray(scores)
-		return self.children[np.argmax(scores)]
+		return max(self.children, key = lambda child: child.avg_score)
 
 	def best_child_uct(self):
-		k = np.log(self.visits)
-		scores = [child.avg_score + np.sqrt(2 * k / child.visits) for child in self.children]
-		scores = np.asarray(scores)
-		return self.children[np.argmax(scores)]
+		k = math.log(self.visits)
+		return max(self.children, key = lambda child: child.avg_score + self.c * math.sqrt(2 * k / child.visits))
 
 	def best_child_visits(self):
-		visits = [child.visits for child in self.children]
-		visits = np.asarray(visits)
-		return self.children[np.argmax(visits)]
-
-
-def mcts_node(root, tsp, iterations=1000):
-	node = root
-	for _ in range(iterations):
-		while node.has_children():
-			node = node.best_child_uct()
-		node.expand()
-		for child in node.children:
-			pay = child.simulate(tsp)
-			child.backprop(pay)
-	return root.best_child_score()
+		return max(self.children, key = lambda child: child.visits)
 
 def mcts(tsp):
 	node = MCTSNode(n=tsp.n)
 	while not node.is_leaf():
-		node = mcts_node(node, tsp, 1000)
+		node = mcts_search(node, tsp)
 	mcts_tour = node.get_tour()
 	mcts_payoff = tsp.tour_length(mcts_tour)
 	return mcts_tour, mcts_payoff
+
+def mcts_search(root_node, tsp, iterations=1000):
+	for _ in range(iterations):
+		node = tree_policy(root_node)
+		pay  = node.simulate(tsp)
+		node.backprop(pay)
+	return root_node.best_child_score()
+
+def tree_policy(root_node):
+	node = root_node
+	while not node.is_leaf():
+		if not node.is_fully_expanded():
+			return node.expand()
+		else:
+			node = node.best_child_uct()
+	return node

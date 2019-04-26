@@ -13,8 +13,8 @@ def run():
 	tsp = alphatsp.tsp.TSP(n, d, points=points)
 
 	# MCTS Solver
-	mcts_sol, mvts_sol_length = alphatsp.solvers.mcts.mcts(tsp)
-	print(f"MCTS Tour:\t{mvts_sol_length},\t{mcts_sol}")
+	mcts_sol, mcts_sol_length = alphatsp.solvers.mcts.mcts(tsp)
+	print(f"MCTS Tour:\t{mcts_sol_length},\t{mcts_sol}")
 
 	# Nearest neighbor greedy solver
 	greedy_sol, greedy_sol_length = alphatsp.solvers.heuristics.nearest_greedy(tsp)
