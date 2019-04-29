@@ -1,5 +1,12 @@
 import argparse
-from alphatsp.experiments import *
+from alphatsp.experiments import (
+	nearestneighbor,
+	mcts,
+	exact,
+	gurobi,
+	insertion,
+	policy
+)
 
 def main(args):
 	if args.experiment == "greedy":
@@ -12,6 +19,8 @@ def main(args):
 		gurobi.run()
 	elif args.experiment == "insertion":
 		insertion.run()
+	elif args.experiment == "policy":
+		policy.run()
 	else:
 		raise ValueError("Invalid experiment selection.")
 

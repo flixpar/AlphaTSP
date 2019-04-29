@@ -1,5 +1,5 @@
 from concorde.tsp import TSPSolver
-from alphatsp.util import stdout_redirected
+from alphatsp.util import stderr_redirected, stdout_redirected
 
 def exact(tsp):
 
@@ -13,7 +13,8 @@ def exact(tsp):
 	ys = points[:, 1]
 	norm_type = "EUC_2D"
 
-	with stdout_redirected():
+	with stdout_redirected(), stderr_redirected():
+
 		concorde_tsp_instance = TSPSolver.from_data(xs, ys, norm_type)
 		tour, val, success, foundtour, hit_timebound = concorde_tsp_instance.solve()
 

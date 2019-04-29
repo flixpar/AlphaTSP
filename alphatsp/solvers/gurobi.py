@@ -5,7 +5,7 @@ import random
 import itertools
 import gurobipy as gbp
 
-from alphatsp.util import stdout_redirected
+from alphatsp.util import stdout_redirected, stderr_redirected
 
 n = 0
 
@@ -45,7 +45,7 @@ def exact_gurobi(tsp):
 	# Dictionary of Euclidean distance between each pair of points
 	dist = {(i,j) : math.sqrt(sum((points[i][k]-points[j][k])**2 for k in range(2))) for i in range(n) for j in range(i)}
 
-	with stdout_redirected():
+	with stdout_redirected(), stderr_redirected():
 
 		m = gbp.Model()
 
