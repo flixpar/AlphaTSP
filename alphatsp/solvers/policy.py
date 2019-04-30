@@ -13,29 +13,29 @@ from alphatsp.solvers.mcts import MCTSNode
 
 
 class PolicyNetwork(nn.Module):
-    def __init__(self, d=2):
-        super(PolicyNetwork, self).__init__()
-        self.conv1 = GCNConv(d,  16)
-        self.conv2 = GCNConv(16, 16)
-        self.conv3 = GCNConv(16, 1)
-        self.fc    = nn.Linear(16, 1)
-    
-    def forward(self, graph):
-        x, edges, choices = graph.pos, graph.edge_index, graph.y
-        
-        x = self.conv1(x, edges)
-        x = F.relu(x)
-        x = self.conv2(x, edges)
-        x = F.relu(x)
-        
-        c = self.conv3(x, edges)
-        choice = torch.masked_select(c.squeeze(), choices)
-        choice = F.softmax(choice, dim=0)
-        
-        v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
-        value = self.fc(v)
+	def __init__(self, d=2):
+		super(PolicyNetwork, self).__init__()
+		self.conv1 = GCNConv(d,  16)
+		self.conv2 = GCNConv(16, 16)
+		self.conv3 = GCNConv(16, 1)
+		self.fc    = nn.Linear(16, 1)
 
-        return choice, value
+	def forward(self, graph):
+		x, edges, choices = graph.pos, graph.edge_index, graph.y
+
+		x = self.conv1(x, edges)
+		x = F.relu(x)
+		x = self.conv2(x, edges)
+		x = F.relu(x)
+
+		c = self.conv3(x, edges)
+		choice = torch.masked_select(c.squeeze(), choices)
+		choice = F.softmax(choice, dim=0)
+
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		value = self.fc(v)
+
+		return choice, value
 
 class PolicySolver:
 
@@ -214,7 +214,7 @@ class SelfPlayExampleGenerator:
 
 	def solve(self):
 
-		node = self.root_node
+		node = copy.deepcopy(self.root_node)
 		while not node.is_leaf():
 			node = node.best_remaining_policy(self.model)
 		greedy_tour = node.get_tour()
@@ -243,7 +243,7 @@ class SelfPlayExampleGenerator:
 			if not node.is_fully_expanded():
 				return node.expand()
 			else:
-				node = node.select_child_uct()
+				node = node.best_child_uct()
 		return node
 
 	def generate_example(self, node):
@@ -258,7 +258,6 @@ class SelfPlayExampleGenerator:
 		choice_probs = [c[0] for c in choice_probs]
 		choice_probs = torch.tensor(choice_probs).to(dtype=torch.float)
 		choice_probs = choice_probs / choice_probs.sum()
-		print(choice_probs)
 
 		choice = torch.argmax(choice_probs)
 
@@ -271,7 +270,7 @@ class SelfPlayExampleGenerator:
 			"choice": choice,
 			"pred_value": pred_value,
 		}
-		self.example_queue.put(example)
+		self.example_queue.put(copy.deepcopy(example))
 
 class PolicyNetworkTrainer:
 

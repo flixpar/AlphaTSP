@@ -61,7 +61,7 @@ class MCTSNode:
 		if self.thresh is None:
 			return self.tsp.payoff(t)
 		else:
-			return self.tsp.tour_length(t) < self.thresh
+			return int(self.tsp.tour_length(t) < self.thresh)
 
 	def has_children(self):
 		return len(self.children) != 0
@@ -174,32 +174,32 @@ class MCTSNode:
 		return self.graph
 
 class MCTSSolver:
-    
-    def __init__(self, tsp, iterations=1000):
-        self.tsp = tsp
-        self.root_node = MCTSNode(tsp=self.tsp)
-        self.iterations = iterations
-    
-    def solve(self):
-        node = self.root_node
-        while not node.is_leaf():
-            node = self.mcts_search(node)
-        mcts_tour = node.get_tour()
-        mcts_payoff = self.tsp.tour_length(mcts_tour)
-        return mcts_tour, mcts_payoff
 
-    def mcts_search(self, start_node):
-        for _ in range(self.iterations):
-            node = self.tree_policy(start_node)
-            pay = node.simulate()
-            node.backprop(pay)
-        return start_node.best_child_score()
+	def __init__(self, tsp, iterations=1000):
+		self.tsp = tsp
+		self.root_node = MCTSNode(tsp=self.tsp)
+		self.iterations = iterations
 
-    def tree_policy(self, start_node):
-        node = start_node
-        while not node.is_leaf():
-            if not node.is_fully_expanded():
-                return node.expand()
-            else:
-                node = node.best_child_uct()
-        return node
+	def solve(self):
+		node = self.root_node
+		while not node.is_leaf():
+			node = self.mcts_search(node)
+		mcts_tour = node.get_tour()
+		mcts_payoff = self.tsp.tour_length(mcts_tour)
+		return mcts_tour, mcts_payoff
+
+	def mcts_search(self, start_node):
+		for _ in range(self.iterations):
+			node = self.tree_policy(start_node)
+			pay = node.simulate()
+			node.backprop(pay)
+		return start_node.best_child_score()
+
+	def tree_policy(self, start_node):
+		node = start_node
+		while not node.is_leaf():
+			if not node.is_fully_expanded():
+				return node.expand()
+			else:
+				node = node.best_child_uct()
+		return node
