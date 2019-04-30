@@ -5,7 +5,8 @@ from alphatsp.experiments import (
 	exact,
 	gurobi,
 	insertion,
-	policy
+	policy,
+	parallel
 )
 
 def main(args):
@@ -21,6 +22,8 @@ def main(args):
 		insertion.run()
 	elif args.experiment == "policy":
 		policy.run()
+	elif args.experiment == "parallel":
+		parallel.run()
 	else:
 		raise ValueError("Invalid experiment selection.")
 

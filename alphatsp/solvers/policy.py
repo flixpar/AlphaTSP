@@ -6,8 +6,8 @@ import torch_geometric
 from torch_geometric.nn import GCNConv, global_mean_pool
 from torch_geometric.data import Data, DataLoader
 
-import queue
 import numpy as np
+import copy
 
 from alphatsp.solvers.mcts import MCTSNode
 
@@ -120,7 +120,7 @@ class MCTSExampleGenerator:
 	def generate_example(self, node):
 
 		# construct graph
-		graph = node.construct_graph()
+		graph = copy.deepcopy(node.construct_graph())
 
 		# construct labels
 
@@ -213,11 +213,13 @@ class PolicyNetworkTrainer:
 
 		self.example_queue = example_queue
 		self.losses = []
+		self.n_examples_used = 0
 
 	def train_example(self):
 		self.model.train()
 
 		example = self.example_queue.get()
+		if example is None: return -1
 		graph, choice_probs, value = example["graph"], example["choice_probs"], example["pred_value"]
 
 		pred_choices, pred_value = self.model(graph)
@@ -229,11 +231,15 @@ class PolicyNetworkTrainer:
 		loss.backward()
 		self.optimizer.step()
 
+		self.n_examples_used += 1
+		return 0
+
 	def train_all(self):
 		self.model.train()
 		while not self.example_queue.empty():
 
 			example = self.example_queue.get()
+			if example is None: return -1
 			graph, choice_probs, value = example["graph"], example["choice_probs"], example["pred_value"]
 
 			pred_choices, pred_value = self.model(graph)
@@ -244,3 +250,6 @@ class PolicyNetworkTrainer:
 			self.optimizer.zero_grad()
 			loss.backward()
 			self.optimizer.step()
+
+			self.n_examples_used += 1
+		return 0
