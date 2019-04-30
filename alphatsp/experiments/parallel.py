@@ -17,8 +17,8 @@ def run():
 
 	# setup
 	N, D = 20, 2
-	n_examples = 1000
-	n_threads = 10
+	n_examples = 20000
+	n_threads = 8
 	n_test_iter = 20
 	policy_network = alphatsp.solvers.policy.PolicyNetwork()
 
@@ -113,9 +113,13 @@ def generate_examples(train_queue, n_examples, N, D):
 def trainer(train_queue, model_queue):
 	policy_network = model_queue.get()
 	trainer = alphatsp.solvers.policy.PolicyNetworkTrainer(policy_network, train_queue)
+	it = trainer.n_examples_used
 	while True:
 		if not train_queue.empty():
 			return_code = trainer.train_all()
+			if trainer.n_examples_used//10000 > it//10000:
+				trainer.save_model()
+			it = trainer.n_examples_used
 			if return_code == -1:
 				model_queue.put(trainer.losses)
 				model_queue.put(policy_network)

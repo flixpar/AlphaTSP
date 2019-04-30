@@ -209,7 +209,7 @@ class PolicyNetworkTrainer:
 
 		self.model = model
 		self.loss_fn = nn.MSELoss()
-		self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=3e-4)
+		self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=3e-5)
 
 		self.example_queue = example_queue
 		self.losses = []
@@ -253,3 +253,6 @@ class PolicyNetworkTrainer:
 
 			self.n_examples_used += 1
 		return 0
+
+	def save_model(self):
+		torch.save(self.model.state_dict(), f"saves/policynet_{self.n_examples_used:06d}.pth")
