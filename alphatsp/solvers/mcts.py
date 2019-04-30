@@ -11,7 +11,7 @@ from torch_geometric.data import Data
 
 class MCTSNode:
 
-	def __init__(self, p=None, t=[0], r=None, tsp=None):
+	def __init__(self, p=None, t=[0], r=None, tsp=None, thresh=None):
 		self.parent = p
 		self.tsp = tsp
 		self.tour = t
@@ -24,6 +24,7 @@ class MCTSNode:
 		self.children = []
 		self.graph = None
 		self.action = self.tour[-1]
+		self.thresh = thresh
 
 	def expand(self):
 		k = random.choice(self.remaining)
@@ -31,7 +32,7 @@ class MCTSNode:
 		r = copy.copy(self.remaining)
 		t.append(k)
 		r.remove(k)
-		child = MCTSNode(self, t, r, self.tsp)
+		child = MCTSNode(self, t, r, self.tsp, self.thresh)
 		self.children.append(child)
 		return child
 
@@ -43,7 +44,7 @@ class MCTSNode:
 		r = copy.copy(self.remaining)
 		t.append(k)
 		r.remove(k)
-		child = MCTSNode(self, t, r, self.tsp)
+		child = MCTSNode(self, t, r, self.tsp, self.thresh)
 		self.children.append(child)
 		return child
 
@@ -57,7 +58,10 @@ class MCTSNode:
 	def simulate(self):
 		random.shuffle(self.remaining)
 		t = self.tour + self.remaining + [0]
-		return self.tsp.payoff(t)
+		if self.thresh is None:
+			return self.tsp.payoff(t)
+		else:
+			return self.tsp.tour_length(t) < self.thresh
 
 	def has_children(self):
 		return len(self.children) != 0
