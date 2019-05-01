@@ -12,7 +12,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 
 import copy
-from torch.multiprocessing import Process, Manager
+from torch.multiprocessing import Process, Manager, Lock
 torch.multiprocessing.set_start_method("spawn", force="True")
 
 def run():
@@ -31,21 +31,29 @@ def run():
 	train_queue = manager.Queue()
 	model_queue = manager.Queue()
 
+	finished_lock = Lock()
+	finished_lock.acquire(block=True)
+
 	for _ in range(n_threads):
 		model_queue.put(policy_network)
 
+	locks = []
 	producers = []
 	for _ in range(n_threads):
-		producers.append(Process(target=generate_examples, args=(train_queue, model_queue, n_examples//n_threads, N, D)))
+		l = Lock()
+		l.acquire(block=False)
+		producers.append(Process(target=generate_examples, args=(train_queue, model_queue, n_examples//n_threads, N, D, l)))
+		locks.append(l)
+
+	c = Process(target=trainer, args=(train_queue, model_queue, locks, finished_lock))
 
 	for p in producers:
 		p.start()
-
-	c = Process(target=trainer, args=(train_queue, model_queue, n_threads))
 	c.start()
 
 	for p in producers:
 		p.join()
+	finished_lock.release()
 	train_queue.put(None)
 
 	c.join()
@@ -107,33 +115,32 @@ def run():
 	# save network
 	torch.save(policy_network.state_dict(), "saves/policy_network.pth")
 
-def generate_examples(train_queue, model_queue, n_examples, N, D):
+def generate_examples(train_queue, model_queue, n_examples, N, D, l):
 	policy_network = model_queue.get()
-	it_since_update = 0
-	for _ in range(n_examples):
-		if not model_queue.empty() and it_since_update > 0:
+	for i in range(n_examples):
+		if not model_queue.empty() and l.acquire(block=False):
 			policy_network = model_queue.get()
-			it_since_update = 0
-		else:
-			it_since_update += 1
 		tsp = alphatsp.tsp.TSP(N, D)
 		solver = alphatsp.solvers.policy.SelfPlayExampleGenerator(tsp, train_queue, policy_network)
 		solver.solve()
 
-def trainer(train_queue, model_queue, n_threads):
+def trainer(train_queue, model_queue, locks, finished_lock):
 	policy_network = model_queue.get()
 	trainer = alphatsp.solvers.policy.PolicyNetworkTrainer(policy_network, train_queue)
 	it = trainer.n_examples_used
 	while True:
 		if not train_queue.empty():
-			return_code = trainer.train_all()
+			trainer.train_all()
 			if trainer.n_examples_used//1000 > it//1000:
-				for _ in range(n_threads):
+				for i in range(len(locks)):
 					model_queue.put(copy.deepcopy(policy_network))
-			if trainer.n_examples_used//10000 > it//10000:
+					locks[i].release()
+			if trainer.n_examples_used//10000 > it//1000:
 				trainer.save_model()
 			it = trainer.n_examples_used
-			if return_code == -1:
-				model_queue.put(trainer.losses)
-				model_queue.put(policy_network)
-				return
+		elif finished_lock.acquire(block=False):
+			model_queue.put(trainer.losses)
+			model_queue.put(policy_network)
+			for l in locks:
+				l.release()
+			return 0
