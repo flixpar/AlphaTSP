@@ -70,6 +70,47 @@ def run():
 	plt.savefig("saves/loss_parallel.png")
 
 	# test policy network vs other solvers
+	evaluate(policy_network, n_test_iter, N, D)
+
+	# save network
+	torch.save(policy_network.state_dict(), "saves/policy_network.pth")
+
+def generate_examples(train_queue, model_queue, n_examples, N, D, l):
+	policy_network = model_queue.get()
+	for i in range(n_examples):
+		if not model_queue.empty() and l.acquire(blocking=False):
+			policy_network = model_queue.get()
+		tsp = alphatsp.tsp.TSP(N, D)
+		solver = alphatsp.solvers.policy.SelfPlayExampleGenerator(tsp, train_queue, policy_network)
+		solver.solve()
+	if not l.acquire(blocking=False):
+		l.release()
+
+def trainer(train_queue, model_queue, locks, finished_lock):
+	policy_network = model_queue.get()
+	trainer = alphatsp.solvers.policy.PolicyNetworkTrainer(policy_network, train_queue)
+	it = trainer.n_examples_used
+	while True:
+		if not train_queue.empty():
+			trainer.train_all()
+			if trainer.n_examples_used//1000 > it//1000:
+				for i in range(len(locks)):
+					model_queue.put(copy.deepcopy(policy_network))
+					if not locks[i].acquire(blocking=False):
+						locks[i].release()
+			if trainer.n_examples_used//10000 > it//10000:
+				trainer.save_model()
+			it = trainer.n_examples_used
+		elif finished_lock.acquire(blocking=False):
+			model_queue.put(trainer.losses)
+			model_queue.put(policy_network)
+			for l in locks:
+				if not l.acquire(blocking=False):
+					l.release()
+			return 0
+
+def evaluate(policy_network, n_test_iter, N, D):
+
 	print("Testing...")
 	policy_lens, policymcts_lens, mcts_lens, greedy_lens, exact_lens = [], [], [], [], []
 	for _ in range(n_test_iter):
@@ -113,38 +154,3 @@ def run():
 	print(f"MCTS:\t\t{mcts_avg}")
 	print(f"Greedy:\t\t{greedy_avg}")
 	print(f"Exact:\t\t{exact_avg}")
-
-	# save network
-	torch.save(policy_network.state_dict(), "saves/policy_network.pth")
-
-def generate_examples(train_queue, model_queue, n_examples, N, D, l):
-	policy_network = model_queue.get()
-	for i in range(n_examples):
-		if not model_queue.empty() and l.acquire(blocking=False):
-			policy_network = model_queue.get()
-		tsp = alphatsp.tsp.TSP(N, D)
-		solver = alphatsp.solvers.policy.SelfPlayExampleGenerator(tsp, train_queue, policy_network)
-		solver.solve()
-	if not l.acquire(blocking=False):
-		l.release()
-
-def trainer(train_queue, model_queue, locks, finished_lock):
-	policy_network = model_queue.get()
-	trainer = alphatsp.solvers.policy.PolicyNetworkTrainer(policy_network, train_queue)
-	it = trainer.n_examples_used
-	while True:
-		if not train_queue.empty():
-			trainer.train_all()
-			if trainer.n_examples_used//100 > it//100:
-				for i in range(len(locks)):
-					model_queue.put(copy.deepcopy(policy_network))
-					if not locks[i].acquire(blocking=False):
-						locks[i].release()
-			it = trainer.n_examples_used
-		elif finished_lock.acquire(blocking=False):
-			model_queue.put(trainer.losses)
-			model_queue.put(policy_network)
-			for l in locks:
-				if not l.acquire(blocking=False):
-					l.release()
-			return 0
