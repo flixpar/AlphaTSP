@@ -1,0 +1,8 @@
+torch
+numpy
+matplotlib
+torch_geometric
+scipy
+cython
+tqdm
+pyconcorde
