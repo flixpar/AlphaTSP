@@ -11,13 +11,15 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 
-from multiprocessing import Process, Manager
+import copy
+from torch.multiprocessing import Process, Manager
+torch.multiprocessing.set_start_method("spawn", force="True")
 
 def run():
 
 	# setup
-	N, D = 20, 2
-	n_examples = 20000
+	N, D = 30, 2
+	n_examples = 10000
 	n_threads = 8
 	n_test_iter = 20
 	policy_network = alphatsp.solvers.policy.PolicyNetwork()
@@ -29,7 +31,8 @@ def run():
 	train_queue = manager.Queue()
 	model_queue = manager.Queue()
 
-	model_queue.put(policy_network)
+	for _ in range(n_threads):
+		model_queue.put(policy_network)
 
 	producers = []
 	for _ in range(n_threads):
@@ -38,7 +41,7 @@ def run():
 	for p in producers:
 		p.start()
 
-	c = Process(target=trainer, args=(train_queue, model_queue))
+	c = Process(target=trainer, args=(train_queue, model_queue, n_threads))
 	c.start()
 
 	for p in producers:
@@ -106,14 +109,18 @@ def run():
 
 def generate_examples(train_queue, model_queue, n_examples, N, D):
 	policy_network = model_queue.get()
+	it_since_update = 0
 	for _ in range(n_examples):
-		if not model_queue.empty():
+		if not model_queue.empty() and it_since_update > 0:
 			policy_network = model_queue.get()
+			it_since_update = 0
+		else:
+			it_since_update += 1
 		tsp = alphatsp.tsp.TSP(N, D)
 		solver = alphatsp.solvers.policy.SelfPlayExampleGenerator(tsp, train_queue, policy_network)
 		solver.solve()
 
-def trainer(train_queue, model_queue):
+def trainer(train_queue, model_queue, n_threads):
 	policy_network = model_queue.get()
 	trainer = alphatsp.solvers.policy.PolicyNetworkTrainer(policy_network, train_queue)
 	it = trainer.n_examples_used
@@ -121,7 +128,8 @@ def trainer(train_queue, model_queue):
 		if not train_queue.empty():
 			return_code = trainer.train_all()
 			if trainer.n_examples_used//1000 > it//1000:
-				model_queue.put(policy_network)
+				for _ in range(n_threads):
+					model_queue.put(copy.deepcopy(policy_network))
 			if trainer.n_examples_used//10000 > it//10000:
 				trainer.save_model()
 			it = trainer.n_examples_used

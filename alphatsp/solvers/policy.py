@@ -120,7 +120,7 @@ class MCTSExampleGenerator:
 	def generate_example(self, node):
 
 		# construct graph
-		graph = copy.deepcopy(node.construct_graph())
+		graph = node.construct_graph()
 
 		# construct labels
 
@@ -249,7 +249,7 @@ class SelfPlayExampleGenerator:
 	def generate_example(self, node):
 
 		# construct graph
-		graph = node.construct_graph()
+		graph = copy.deepcopy(node.construct_graph())
 
 		# construct labels
 
@@ -270,7 +270,7 @@ class SelfPlayExampleGenerator:
 			"choice": choice,
 			"pred_value": pred_value,
 		}
-		self.example_queue.put(copy.deepcopy(example))
+		self.example_queue.put(example)
 
 class PolicyNetworkTrainer:
 
