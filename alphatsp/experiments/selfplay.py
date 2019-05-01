@@ -31,17 +31,17 @@ def run():
 	train_queue = manager.Queue()
 	model_queue = manager.Queue()
 
-	finished_lock = Lock()
-	finished_lock.acquire(block=True)
+	finished_lock = manager.Lock()
+	finished_lock.acquire(blocking=True)
 
-	for _ in range(n_threads):
+	for _ in range(n_threads+1):
 		model_queue.put(policy_network)
 
 	locks = []
 	producers = []
 	for _ in range(n_threads):
-		l = Lock()
-		l.acquire(block=False)
+		l = manager.Lock()
+		l.acquire(blocking=True)
 		producers.append(Process(target=generate_examples, args=(train_queue, model_queue, n_examples//n_threads, N, D, l)))
 		locks.append(l)
 
@@ -53,11 +53,13 @@ def run():
 
 	for p in producers:
 		p.join()
-	finished_lock.release()
-	train_queue.put(None)
 
+	finished_lock.release()
 	c.join()
-	train_losses = model_queue.get()
+
+	train_losses = None
+	while not isinstance(train_losses, list):
+		train_losses = model_queue.get()
 	policy_network = model_queue.get()
 
 	# display training loss
@@ -118,11 +120,13 @@ def run():
 def generate_examples(train_queue, model_queue, n_examples, N, D, l):
 	policy_network = model_queue.get()
 	for i in range(n_examples):
-		if not model_queue.empty() and l.acquire(block=False):
+		if not model_queue.empty() and l.acquire(blocking=False):
 			policy_network = model_queue.get()
 		tsp = alphatsp.tsp.TSP(N, D)
 		solver = alphatsp.solvers.policy.SelfPlayExampleGenerator(tsp, train_queue, policy_network)
 		solver.solve()
+	if not l.acquire(blocking=False):
+		l.release()
 
 def trainer(train_queue, model_queue, locks, finished_lock):
 	policy_network = model_queue.get()
@@ -131,16 +135,16 @@ def trainer(train_queue, model_queue, locks, finished_lock):
 	while True:
 		if not train_queue.empty():
 			trainer.train_all()
-			if trainer.n_examples_used//1000 > it//1000:
+			if trainer.n_examples_used//100 > it//100:
 				for i in range(len(locks)):
 					model_queue.put(copy.deepcopy(policy_network))
-					locks[i].release()
-			if trainer.n_examples_used//10000 > it//1000:
-				trainer.save_model()
+					if not locks[i].acquire(blocking=False):
+						locks[i].release()
 			it = trainer.n_examples_used
-		elif finished_lock.acquire(block=False):
+		elif finished_lock.acquire(blocking=False):
 			model_queue.put(trainer.losses)
 			model_queue.put(policy_network)
 			for l in locks:
-				l.release()
+				if not l.acquire(blocking=False):
+					l.release()
 			return 0
