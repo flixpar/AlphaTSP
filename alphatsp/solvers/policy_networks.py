@@ -15,7 +15,7 @@ class GCNPolicyNetwork(nn.Module):
 		self.fc    = nn.Linear(16, 1)
 
 	def forward(self, graph):
-		x, edges, choices = graph.pos, graph.edge_index, graph.y
+		x, edges, choices = graph.x, graph.edge_index, graph.y
 
 		x = self.conv1(x, edges)
 		x = F.relu(x)
