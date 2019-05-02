@@ -1,4 +1,5 @@
 import argparse
+from args import Args
 from alphatsp.experiments import (
 	nearestneighbor,
 	mcts,
@@ -11,22 +12,23 @@ from alphatsp.experiments import (
 )
 
 def main(args):
+	a = Args()
 	if args.experiment == "greedy":
-		nearestneighbor.run()
+		nearestneighbor.run(a)
 	elif args.experiment == "mcts":
-		mcts.run()
+		mcts.run(a)
 	elif args.experiment == "exact":
-		exact.run()
+		exact.run(a)
 	elif args.experiment == "gurobi":
-		gurobi.run()
+		gurobi.run(a)
 	elif args.experiment == "insertion":
-		insertion.run()
+		insertion.run(a)
 	elif args.experiment == "policy":
-		policy.run()
+		policy.run(a)
 	elif args.experiment == "parallel":
-		parallel.run()
+		parallel.run(a)
 	elif args.experiment == "selfplay":
-		selfplay.run()
+		selfplay.run(a)
 	else:
 		raise ValueError("Invalid experiment selection.")
 

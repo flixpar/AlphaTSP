@@ -1,37 +1,41 @@
 import alphatsp.tsp
 import alphatsp.solvers.heuristics
 import alphatsp.solvers.exact
-import alphatsp.solvers.policy
 import alphatsp.solvers.mcts
 import alphatsp.util
+
+import alphatsp.solvers.policy_solvers
+import alphatsp.solvers.example_generators
+import alphatsp.solvers.policy_networks
 
 import torch
 import numpy as np
 
 import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import tqdm
 import queue
 
-def run():
+def run(args):
 
 	# setup
-	N, D = 30, 2
-	n_examples = 500
-	policy_network = alphatsp.solvers.policy.PolicyNetwork()
+	N, D = args.N, args.D
+	n_examples = args.n_train_examples
+	policy_network = alphatsp.util.get_policy_network(args.policy_network)
 
 	# generate examples
 	print("Generating examples...")
 	train_queue = queue.Queue()
 	for _ in tqdm.tqdm(range(n_examples)):
 		tsp = alphatsp.tsp.TSP(N, D)
-		solver = alphatsp.solvers.policy.MCTSExampleGenerator(tsp, train_queue)
+		solver = alphatsp.solvers.example_generators.MCTSExampleGenerator(args, tsp, train_queue)
 		solver.solve()
 
 	# train policy network
 	print("Training...")
-	trainer = alphatsp.solvers.policy.PolicyNetworkTrainer(policy_network, train_queue)
+	trainer = alphatsp.solvers.policy_networks.PolicyNetworkTrainer(policy_network, train_queue)
 	trainer.train_all()
 	policy_network = trainer.model
 
@@ -45,20 +49,20 @@ def run():
 	# test policy network vs other solvers
 	print("Testing...")
 	policy_lens, policymcts_lens, mcts_lens, greedy_lens, exact_lens = [], [], [], [], []
-	for _ in range(20):
+	for _ in range(args.n_test_examples):
 
 		tsp = alphatsp.tsp.TSP(N, D)
 
 		# policy only
-		policy_solver = alphatsp.solvers.policy.PolicySolver(tsp, policy_network)
+		policy_solver = alphatsp.solvers.policy_solvers.PolicySolver(args, tsp, policy_network)
 		policy_tour, policy_tour_len = policy_solver.solve()
 
 		# policy + mcts
-		policymcts_solver = alphatsp.solvers.policy.PolicyMCTSSolver(tsp, policy_network)
+		policymcts_solver = alphatsp.solvers.policy_solvers.PolicyMCTSSolver(args, tsp, policy_network)
 		policymcts_tour, policymcts_tour_len = policymcts_solver.solve()
 
 		# mcts
-		mcts_solver = alphatsp.solvers.mcts.MCTSSolver(tsp)
+		mcts_solver = alphatsp.solvers.mcts.MCTSSolver(args, tsp)
 		mcts_tour, mcts_tour_len = mcts_solver.solve()
 
 		# benchmarks

@@ -8,23 +8,33 @@ import torch
 import torch_geometric
 from torch_geometric.data import Data
 
+import alphatsp.util
+
+class MCTSTree:
+	def __init__(self, args, tsp):
+		self.tsp = tsp
+		self.points = tsp.points
+		self.n = tsp.n
+		self.graph_constructor = alphatsp.util.get_graph_constructor(args.graph_construction)
+		self.c = args.exploration_constant
+		self.root_node = MCTSNode(tsp=self.tsp, tree=self)
 
 class MCTSNode:
 
-	def __init__(self, p=None, t=[0], r=None, tsp=None, thresh=None):
+	def __init__(self, p=None, t=[0], r=None, thresh=None, tsp=None, tree=None):
 		self.parent = p
-		self.tsp = tsp
 		self.tour = t
 		self.remaining = r if r is not None else list(range(1, tsp.n))
 		self.visits = 0
 		self.total_score = 0
 		self.avg_score = 1 / (len(self.remaining)+1)
-		self.c = 0.7
-		self.n = tsp.n
 		self.children = []
 		self.graph = None
 		self.action = self.tour[-1]
 		self.thresh = thresh
+		self.tsp = tsp
+		self.tree = tree
+		self.construct_graph = self.tree.graph_constructor
 
 	def expand(self):
 		k = random.choice(self.remaining)
@@ -32,7 +42,7 @@ class MCTSNode:
 		r = copy.copy(self.remaining)
 		t.append(k)
 		r.remove(k)
-		child = MCTSNode(self, t, r, self.tsp, self.thresh)
+		child = MCTSNode(self, t, r, self.thresh, self.tsp, self.tree)
 		self.children.append(child)
 		return child
 
@@ -44,7 +54,7 @@ class MCTSNode:
 		r = copy.copy(self.remaining)
 		t.append(k)
 		r.remove(k)
-		child = MCTSNode(self, t, r, self.tsp, self.thresh)
+		child = MCTSNode(self, t, r, self.thresh, self.tsp, self.tree)
 		self.children.append(child)
 		return child
 
@@ -67,7 +77,7 @@ class MCTSNode:
 		return len(self.children) != 0
 
 	def is_leaf(self):
-		return len(self.tour) == self.n
+		return len(self.tour) == self.tsp.n
 
 	def is_fully_expanded(self):
 		return len(self.remaining) == len(self.children)
@@ -80,7 +90,7 @@ class MCTSNode:
 
 	def best_child_uct(self):
 		k = math.log(self.visits)
-		return max(self.children, key = lambda child: child.avg_score + self.c * math.sqrt(2 * k / child.visits))
+		return max(self.children, key = lambda child: child.avg_score + self.tree.c * math.sqrt(2 * k / child.visits))
 
 	def best_child_visits(self):
 		return max(self.children, key = lambda child: child.visits)
@@ -93,11 +103,11 @@ class MCTSNode:
 
 		actions = [child.action for child in self.children]
 		r = list(set.intersection(set(actions), set(self.remaining)))
-		z = np.zeros(self.n, dtype=np.int)
+		z = np.zeros(self.tsp.n, dtype=np.int)
 		z[r] = 1
 		z = z[self.remaining]
 
-		graph = self.construct_graph()
+		graph = self.get_graph()
 		pred, _ = model(graph)
 
 		pred = pred.squeeze()[z]
@@ -113,11 +123,11 @@ class MCTSNode:
 
 		actions = [child.action for child in self.children]
 		r = list(set.intersection(set(actions), set(self.remaining)))
-		z = np.zeros(self.n, dtype=np.int)
+		z = np.zeros(self.tsp.n, dtype=np.int)
 		z[r] = 1
 		z = z[self.remaining]
 
-		graph = self.construct_graph()
+		graph = self.get_graph()
 		pred, _ = model(graph)
 
 		pred = pred.squeeze()[z]
@@ -130,7 +140,7 @@ class MCTSNode:
 
 		model.eval()
 
-		graph = self.construct_graph()
+		graph = self.get_graph()
 		pred, _ = model(graph)
 
 		selection = torch.argmax(pred.squeeze()).item()
@@ -144,7 +154,7 @@ class MCTSNode:
 
 		model.eval()
 
-		graph = self.construct_graph()
+		graph = self.get_graph()
 		pred, _ = model(graph)
 
 		selection = torch.argmax(pred.squeeze()).item()
@@ -153,32 +163,40 @@ class MCTSNode:
 		selection = torch.multinomial(pred.squeeze(), 1)
 		return self.add_child(selection)
 
-	def construct_graph(self):
+	def get_graph(self):
 		if self.graph is not None:
 			return self.graph
-
-		points = torch.tensor(self.tsp.points).to(dtype=torch.float)
-
-		edges = torch.zeros((2, len(self.tour)-1), dtype=torch.long)
-		for i in range(len(self.tour)-1):
-			edges[0, i] = self.tour[i]
-			edges[1, i] = self.tour[i+1]
-
-		choices = torch.zeros(self.n, dtype=torch.uint8)
-		choices[self.remaining] = 1
-
-		x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
-
-		self.graph = Data(x=x, pos=points, edge_index=edges, y=choices)
-
+		self.graph = self.construct_graph(self.tsp, self.tour, self.remaining)
 		return self.graph
+
+	# def construct_graph(self):
+	# 	if self.graph is not None:
+	# 		return self.graph
+
+	# 	points = torch.tensor(self.tsp.points).to(dtype=torch.float)
+
+	# 	edges = torch.zeros((2, len(self.tour)-1), dtype=torch.long)
+	# 	for i in range(len(self.tour)-1):
+	# 		edges[0, i] = self.tour[i]
+	# 		edges[1, i] = self.tour[i+1]
+
+	# 	choices = torch.zeros(self.n, dtype=torch.uint8)
+	# 	choices[self.remaining] = 1
+
+	# 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
+
+	# 	self.graph = Data(x=x, pos=points, edge_index=edges, y=choices)
+
+	# 	return self.graph
 
 class MCTSSolver:
 
-	def __init__(self, tsp, iterations=1000):
+	def __init__(self, args, tsp, iterations=1000, selection_func=None):
 		self.tsp = tsp
-		self.root_node = MCTSNode(tsp=self.tsp)
+		self.tree = MCTSTree(args, tsp)
+		self.root_node = self.tree.root_node
 		self.iterations = iterations
+		self.selection_func = selection_func if selection_func is not None else lambda p: p.best_child_uct()
 
 	def solve(self):
 		node = self.root_node
@@ -201,5 +219,5 @@ class MCTSSolver:
 			if not node.is_fully_expanded():
 				return node.expand()
 			else:
-				node = node.best_child_uct()
+				node = self.selection_func(node)
 		return node

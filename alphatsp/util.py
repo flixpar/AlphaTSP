@@ -1,9 +1,27 @@
 import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 plt.style.use("seaborn-darkgrid")
 
+import alphatsp.solvers.policy_networks
+import alphatsp.solvers.graph_construction
+
 import os, sys
 from contextlib import contextmanager
+
+def get_policy_network(network_type):
+	if network_type == "gcn":
+		return alphatsp.solvers.policy_networks.GCNPolicyNetwork()
+	else:
+		raise ValueError("Invalid network type given.")
+
+def get_graph_constructor(construction_type):
+	if construction_type == "grow":
+		return alphatsp.solvers.graph_construction.construct_graph_grow
+	elif construction_type == "prune":
+		return alphatsp.solvers.graph_construction.construct_graph_prune
+	else:
+		raise ValueError("Invalid graph construction type given.")
 
 def display_tour(tsp, tour, title=""):
 	points = tsp.points

@@ -1,26 +1,30 @@
 import alphatsp.tsp
 import alphatsp.solvers.heuristics
 import alphatsp.solvers.exact
-import alphatsp.solvers.policy
 import alphatsp.solvers.mcts
 import alphatsp.util
+
+import alphatsp.solvers.policy_solvers
+import alphatsp.solvers.example_generators
+import alphatsp.solvers.policy_networks
 
 import torch
 import numpy as np
 
 import matplotlib
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 from multiprocessing import Process, Manager
 
-def run():
+def run(args):
 
 	# setup
-	N, D = 20, 2
-	n_examples = 20000
-	n_threads = 8
-	n_test_iter = 20
-	policy_network = alphatsp.solvers.policy.PolicyNetwork()
+	N, D = args.N, args.D
+	n_examples = args.n_train_examples
+	n_threads = args.n_threads
+	n_test_iter = args.n_test_examples
+	policy_network = alphatsp.util.get_policy_network(args.policy_network)
 
 	# generate examples
 	print("Generating examples and training...")
@@ -33,12 +37,12 @@ def run():
 
 	producers = []
 	for _ in range(n_threads):
-		producers.append(Process(target=generate_examples, args=(train_queue, n_examples//n_threads, N, D)))
+		producers.append(Process(target=generate_examples, args=(train_queue, n_examples//n_threads, N, D, args)))
 
 	for p in producers:
 		p.start()
 
-	c = Process(target=trainer, args=(train_queue, model_queue))
+	c = Process(target=trainer, args=(train_queue, model_queue, args))
 	c.start()
 
 	for p in producers:
@@ -64,15 +68,15 @@ def run():
 		tsp = alphatsp.tsp.TSP(N, D)
 
 		# policy only
-		policy_solver = alphatsp.solvers.policy.PolicySolver(tsp, policy_network)
+		policy_solver = alphatsp.solvers.policy_solvers.PolicySolver(args, tsp, policy_network)
 		policy_tour, policy_tour_len = policy_solver.solve()
 
 		# policy + mcts
-		policymcts_solver = alphatsp.solvers.policy.PolicyMCTSSolver(tsp, policy_network)
+		policymcts_solver = alphatsp.solvers.policy_solvers.PolicyMCTSSolver(args, tsp, policy_network)
 		policymcts_tour, policymcts_tour_len = policymcts_solver.solve()
 
 		# mcts
-		mcts_solver = alphatsp.solvers.mcts.MCTSSolver(tsp)
+		mcts_solver = alphatsp.solvers.mcts.MCTSSolver(args, tsp)
 		mcts_tour, mcts_tour_len = mcts_solver.solve()
 
 		# benchmarks
@@ -104,15 +108,15 @@ def run():
 	# save network
 	torch.save(policy_network.state_dict(), "saves/policy_network.pth")
 
-def generate_examples(train_queue, n_examples, N, D):
+def generate_examples(train_queue, n_examples, N, D, args):
 	for _ in range(n_examples):
 		tsp = alphatsp.tsp.TSP(N, D)
-		solver = alphatsp.solvers.policy.MCTSExampleGenerator(tsp, train_queue)
+		solver = alphatsp.solvers.example_generators.MCTSExampleGenerator(args, tsp, train_queue)
 		solver.solve()
 
-def trainer(train_queue, model_queue):
+def trainer(train_queue, model_queue, args):
 	policy_network = model_queue.get()
-	trainer = alphatsp.solvers.policy.PolicyNetworkTrainer(policy_network, train_queue)
+	trainer = alphatsp.solvers.policy_networks.PolicyNetworkTrainer(policy_network, train_queue)
 	it = trainer.n_examples_used
 	while True:
 		if not train_queue.empty():

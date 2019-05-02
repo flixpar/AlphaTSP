@@ -6,14 +6,14 @@ import alphatsp.util
 
 import numpy as np
 
-def run():
+def run(args):
 
-	n, d = 30, 2
+	n, d = args.N, args.D
 	points = np.random.rand(n, d)
 	tsp = alphatsp.tsp.TSP(n, d, points=points)
 
 	# MCTS Solver
-	mcts_solver = alphatsp.solvers.mcts.MCTSSolver(tsp)
+	mcts_solver = alphatsp.solvers.mcts.MCTSSolver(args, tsp)
 	mcts_sol, mcts_sol_length = mcts_solver.solve()
 	print(f"MCTS Tour:\t{mcts_sol_length},\t{mcts_sol}")
 
