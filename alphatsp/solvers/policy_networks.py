@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 
 import torch_geometric
-from torch_geometric.nn import GCNConv, global_mean_pool
+from torch_geometric.nn import GCNConv, global_mean_pool, ARMAConv, XConv
 from torch_geometric.data import Data, DataLoader
 
 class GCNPolicyNetwork(nn.Module):
@@ -23,6 +23,80 @@ class GCNPolicyNetwork(nn.Module):
 		x = F.relu(x)
 
 		c = self.conv3(x, edges)
+		choice = torch.masked_select(c.squeeze(), choices)
+		choice = F.softmax(choice, dim=0)
+
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		value = self.fc(v)
+
+		return choice, value
+
+class ARMAPolicyNetwork(torch.nn.Module):
+	def __init__(self, d=3):
+		super(ARMAPolicyNetwork, self).__init__()
+
+		self.conv1 = ARMAConv(
+			d,
+			16,
+			num_stacks=3,
+			num_layers=2,
+			shared_weights=True,
+			dropout=0.1)
+
+		self.conv2 = ARMAConv(
+			16,
+			16,
+			num_stacks=3,
+			num_layers=2,
+			shared_weights=True,
+			dropout=0.1,
+			act=None)
+
+		self.conv3 = ARMAConv(
+			16,
+			1,
+			num_stacks=3,
+			num_layers=2,
+			shared_weights=True,
+			dropout=0.1,
+			act=None)
+
+		self.fc = nn.Linear(16, 1)
+
+	def forward(self, graph):
+		x, edges, choices = graph.x, graph.edge_index, graph.y
+
+		x = self.conv1(x, edges)
+		x = F.relu(x)
+		x = self.conv2(x, edges)
+		x = F.relu(x)
+
+		c = self.conv3(x, edges)
+		choice = torch.masked_select(c.squeeze(), choices)
+		choice = F.softmax(choice, dim=0)
+
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		value = self.fc(v)
+
+		return choice, value
+
+class PointCNNPolicyNetwork(nn.Module):
+	def __init__(self, d=3):
+		super(PointCNNPolicyNetwork, self).__init__()
+		self.conv1 = XConv(d,  16, dim=2, kernel_size=10, hidden_channels=4)
+		self.conv2 = XConv(16, 16, dim=2, kernel_size=10, hidden_channels=4)
+		self.conv3 = XConv(16,  1, dim=2, kernel_size=10, hidden_channels=4)
+		self.fc    = nn.Linear(16, 1)
+
+	def forward(self, graph):
+		x, pos, choices = graph.x, graph.pos, graph.y
+
+		x = self.conv1(x, pos)
+		x = F.relu(x)
+		x = self.conv2(x, pos)
+		x = F.relu(x)
+
+		c = self.conv3(x, pos)
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
