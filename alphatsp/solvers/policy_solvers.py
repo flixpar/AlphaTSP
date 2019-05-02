@@ -18,7 +18,7 @@ class PolicySolver:
 
 class PolicyMCTSSolver(MCTSSolver):
 
-	def __init__(self, args, tsp, model, iterations=5000):
+	def __init__(self, args, tsp, model):
 		self.model = model
 		selection_func = lambda node: node.select_child_policy(self.model)
-		super(PolicyMCTSSolver, self).__init__(args, tsp, selection_func=selection_func, iterations=iterations)
+		super(PolicyMCTSSolver, self).__init__(args, tsp, selection_func=selection_func)

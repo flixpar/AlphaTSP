@@ -4,12 +4,12 @@ from alphatsp.solvers.mcts import MCTSNode, MCTSTree
 
 class MCTSExampleGenerator:
 
-	def __init__(self, args, tsp, example_queue, iterations=1000):
+	def __init__(self, args, tsp, example_queue):
 		self.tsp = tsp
 		self.tree = MCTSTree(args, self.tsp)
 		self.root_node = self.tree.root_node
 		self.example_queue = example_queue
-		self.iterations = iterations
+		self.iterations = args.mcts_iters
 
 	def solve(self):
 		node = self.root_node
@@ -61,8 +61,8 @@ class MCTSExampleGenerator:
 
 class SelfPlayExampleGenerator(MCTSExampleGenerator):
 
-	def __init__(self, args, tsp, example_queue, model, iterations=500):
-		super(SelfPlayExampleGenerator, self).__init__(args, tsp, example_queue, iterations)
+	def __init__(self, args, tsp, example_queue, model):
+		super(SelfPlayExampleGenerator, self).__init__(args, tsp, example_queue)
 		self.model = model
 
 	def solve(self):

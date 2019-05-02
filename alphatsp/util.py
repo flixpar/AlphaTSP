@@ -12,6 +12,10 @@ from contextlib import contextmanager
 def get_policy_network(network_type):
 	if network_type == "gcn":
 		return alphatsp.solvers.policy_networks.GCNPolicyNetwork()
+	elif network_type == "arma":
+		return alphatsp.solvers.policy_networks.ARMAPolicyNetwork()
+	elif network_type == "pointcnn":
+		return alphatsp.solvers.policy_networks.PointCNNPolicyNetwork()
 	else:
 		raise ValueError("Invalid network type given.")
 

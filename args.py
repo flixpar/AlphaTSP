@@ -11,5 +11,6 @@ class Args:
 
 	policy_network = "gcn"
 	graph_construction = "grow"
+	weighted_graph = False
 
 	n_threads = 8

@@ -169,33 +169,13 @@ class MCTSNode:
 		self.graph = self.construct_graph(self.tsp, self.tour, self.remaining)
 		return self.graph
 
-	# def construct_graph(self):
-	# 	if self.graph is not None:
-	# 		return self.graph
-
-	# 	points = torch.tensor(self.tsp.points).to(dtype=torch.float)
-
-	# 	edges = torch.zeros((2, len(self.tour)-1), dtype=torch.long)
-	# 	for i in range(len(self.tour)-1):
-	# 		edges[0, i] = self.tour[i]
-	# 		edges[1, i] = self.tour[i+1]
-
-	# 	choices = torch.zeros(self.n, dtype=torch.uint8)
-	# 	choices[self.remaining] = 1
-
-	# 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
-
-	# 	self.graph = Data(x=x, pos=points, edge_index=edges, y=choices)
-
-	# 	return self.graph
-
 class MCTSSolver:
 
-	def __init__(self, args, tsp, iterations=1000, selection_func=None):
+	def __init__(self, args, tsp, selection_func=None):
 		self.tsp = tsp
 		self.tree = MCTSTree(args, tsp)
 		self.root_node = self.tree.root_node
-		self.iterations = iterations
+		self.iterations = args.mcts_iters
 		self.selection_func = selection_func if selection_func is not None else lambda p: p.best_child_uct()
 
 	def solve(self):
