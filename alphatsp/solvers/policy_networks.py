@@ -7,7 +7,7 @@ from torch_geometric.nn import GCNConv, global_mean_pool
 from torch_geometric.data import Data, DataLoader
 
 class GCNPolicyNetwork(nn.Module):
-	def __init__(self, d=2):
+	def __init__(self, d=3):
 		super(GCNPolicyNetwork, self).__init__()
 		self.conv1 = GCNConv(d,  16)
 		self.conv2 = GCNConv(16, 16)

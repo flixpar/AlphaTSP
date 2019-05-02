@@ -31,7 +31,7 @@ def construct_graph_prune(tsp, tour, remaining):
 	for i in range(len(tour)-1):
 		edges.append((tour[i], tour[i+1]))
 
-	edges = torch.tensor(edges, dtype=torch.long).T
+	edges = torch.tensor(edges, dtype=torch.long).transpose(0,1)
 
 	choices = torch.zeros(tsp.n, dtype=torch.uint8)
 	choices[remaining] = 1
