@@ -1,4 +1,5 @@
 import argparse
+import multiprocessing as mp
 from args import Args
 from alphatsp.experiments import (
 	nearestneighbor,
@@ -33,6 +34,7 @@ def main(args):
 		raise ValueError("Invalid experiment selection.")
 
 if __name__ == "__main__":
+	mp.set_start_method('spawn')
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--experiment", type=str, required=True, help="experiment name")
 	args = parser.parse_args()

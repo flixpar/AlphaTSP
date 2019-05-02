@@ -57,7 +57,7 @@ class MCTSExampleGenerator:
 			"choice": choice,
 			"pred_value": pred_value,
 		}
-		self.example_queue.put(example)
+		self.example_queue.put(copy.deepcopy(example))
 
 class SelfPlayExampleGenerator(MCTSExampleGenerator):
 

@@ -16,8 +16,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import copy
-from torch.multiprocessing import Process, Manager, Lock
-torch.multiprocessing.set_start_method("spawn", force="True")
+from multiprocessing import Process, Manager, Lock
 
 def run(args):
 
@@ -32,7 +31,7 @@ def run(args):
 	print("Generating examples and training...")
 
 	manager = Manager()
-	train_queue = manager.Queue()
+	train_queue = manager.Queue(150)
 	model_queue = manager.Queue()
 
 	finished_lock = manager.Lock()
@@ -96,7 +95,7 @@ def trainer(train_queue, model_queue, locks, finished_lock, args):
 	it = trainer.n_examples_used
 	while True:
 		if not train_queue.empty():
-			trainer.train_all()
+			trainer.train_example()
 			if trainer.n_examples_used//1000 > it//1000:
 				for i in range(len(locks)):
 					model_queue.put(copy.deepcopy(policy_network))
