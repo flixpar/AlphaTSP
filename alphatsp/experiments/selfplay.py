@@ -16,7 +16,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
 import copy
-from multiprocessing import Process, Manager, Lock
+from multiprocessing import Process, Manager, Lock, Pool
 
 def run(args):
 
@@ -31,7 +31,7 @@ def run(args):
 	print("Generating examples and training...")
 
 	manager = Manager()
-	train_queue = manager.Queue(150)
+	train_queue = manager.Queue(100)
 	model_queue = manager.Queue()
 
 	finished_lock = manager.Lock()
@@ -73,7 +73,7 @@ def run(args):
 	plt.savefig("saves/loss_parallel.png")
 
 	# test policy network vs other solvers
-	evaluate(policy_network, n_test_iter, N, D, args)
+	evaluate(policy_network, args)
 
 	# save network
 	torch.save(policy_network.state_dict(), "saves/policy_network.pth")
@@ -101,8 +101,9 @@ def trainer(train_queue, model_queue, locks, finished_lock, args):
 					model_queue.put(copy.deepcopy(policy_network))
 					if not locks[i].acquire(blocking=False):
 						locks[i].release()
-			if trainer.n_examples_used//10000 > it//10000:
+			if trainer.n_examples_used//1000 > it//1000:
 				trainer.save_model()
+				evaluate(policy_network, args)
 			it = trainer.n_examples_used
 		elif finished_lock.acquire(blocking=False):
 			model_queue.put(trainer.losses)
@@ -112,36 +113,18 @@ def trainer(train_queue, model_queue, locks, finished_lock, args):
 					l.release()
 			return 0
 
-def evaluate(policy_network, n_test_iter, N, D, args):
+def evaluate(policy_network, args):
+	n_test_iter, N, D = args.n_test_examples, args.N, args.D
 
 	print("Testing...")
-	policy_lens, policymcts_lens, mcts_lens, greedy_lens, exact_lens = [], [], [], [], []
-	for _ in range(n_test_iter):
+	results = []
+	
+	with Pool(args.n_threads) as pool:
+		result_handlers = [pool.apply_async(evaluate_single, (policy_network, N, D, args)) for _ in range(n_test_iter)]
+		for handle in result_handlers:
+			results.append(handle.get())
 
-		tsp = alphatsp.tsp.TSP(N, D)
-
-		# policy only
-		policy_solver = alphatsp.solvers.policy_solvers.PolicySolver(args, tsp, policy_network)
-		policy_tour, policy_tour_len = policy_solver.solve()
-
-		# policy + mcts
-		policymcts_solver = alphatsp.solvers.policy_solvers.PolicyMCTSSolver(args, tsp, policy_network)
-		policymcts_tour, policymcts_tour_len = policymcts_solver.solve()
-
-		# mcts
-		mcts_solver = alphatsp.solvers.mcts.MCTSSolver(args, tsp)
-		mcts_tour, mcts_tour_len = mcts_solver.solve()
-
-		# benchmarks
-		greedy_tour, greedy_tour_len = alphatsp.solvers.heuristics.nearest_greedy(tsp)
-		exact_tour, exact_tour_len = alphatsp.solvers.exact.exact(tsp)
-
-		# log lengths
-		policy_lens.append(policy_tour_len)
-		policymcts_lens.append(policymcts_tour_len)
-		mcts_lens.append(mcts_tour_len)
-		greedy_lens.append(greedy_tour_len)
-		exact_lens.append(exact_tour_len)
+	policy_lens, policymcts_lens, mcts_lens, greedy_lens, exact_lens = zip(*results)
 
 	# average results
 	policy_avg     = np.mean(policy_lens)
@@ -157,3 +140,24 @@ def evaluate(policy_network, n_test_iter, N, D, args):
 	print(f"MCTS:\t\t{mcts_avg}")
 	print(f"Greedy:\t\t{greedy_avg}")
 	print(f"Exact:\t\t{exact_avg}")
+
+def evaluate_single(policy_network, N, D, args):
+	tsp = alphatsp.tsp.TSP(N, D)
+
+	# policy only
+	policy_solver = alphatsp.solvers.policy_solvers.PolicySolver(args, tsp, policy_network)
+	_, policy_tour_len = policy_solver.solve()
+
+	# policy + mcts
+	policymcts_solver = alphatsp.solvers.policy_solvers.PolicyMCTSSolver(args, tsp, policy_network)
+	_, policymcts_tour_len = policymcts_solver.solve()
+
+	# mcts
+	mcts_solver = alphatsp.solvers.mcts.MCTSSolver(args, tsp)
+	_, mcts_tour_len = mcts_solver.solve()
+
+	# benchmarks
+	_, greedy_tour_len = alphatsp.solvers.heuristics.nearest_greedy(tsp)
+	_, exact_tour_len = alphatsp.solvers.exact.exact(tsp)
+
+	return (policy_tour_len, policymcts_tour_len, mcts_tour_len, greedy_tour_len, exact_tour_len)
