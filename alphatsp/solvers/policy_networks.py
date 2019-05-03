@@ -3,15 +3,15 @@ from torch import nn
 import torch.nn.functional as F
 
 import torch_geometric
-from torch_geometric.nn import GCNConv, global_mean_pool, ARMAConv, XConv
+from torch_geometric.nn import GCNConv, global_mean_pool, ARMAConv, XConv, SAGEConv
 from torch_geometric.data import Data, DataLoader
 
 class GCNPolicyNetwork(nn.Module):
 	def __init__(self, d=3):
 		super(GCNPolicyNetwork, self).__init__()
-		self.conv1 = GCNConv(d,  16)
-		self.conv2 = GCNConv(16, 16)
-		self.conv3 = GCNConv(16, 1)
+		self.conv1 = GCNConv(d,  16, improved=True, cached=True)
+		self.conv2 = GCNConv(16, 16, improved=True, cached=True)
+		self.conv3 = GCNConv(16,  1, improved=True, cached=True)
 		self.fc    = nn.Linear(16, 1)
 
 	def forward(self, graph):
@@ -72,6 +72,56 @@ class ARMAPolicyNetwork(torch.nn.Module):
 		x = F.relu(x)
 
 		c = self.conv3(x, edges)
+		choice = torch.masked_select(c.squeeze(), choices)
+		choice = F.softmax(choice, dim=0)
+
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		value = self.fc(v)
+
+		return choice, value
+
+class SagePolicyNetwork(nn.Module):
+	def __init__(self, d=3):
+		super(SagePolicyNetwork, self).__init__()
+		self.conv1 = SAGEConv(d,  16)
+		self.conv2 = SAGEConv(16, 16)
+		self.conv3 = SAGEConv(16, 1)
+		self.fc    = nn.Linear(16, 1)
+
+	def forward(self, graph):
+		x, edges, choices = graph.x, graph.edge_index, graph.y
+
+		x = self.conv1(x, edges)
+		x = F.relu(x)
+		x = self.conv2(x, edges)
+		x = F.relu(x)
+
+		c = self.conv3(x, edges)
+		choice = torch.masked_select(c.squeeze(), choices)
+		choice = F.softmax(choice, dim=0)
+
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		value = self.fc(v)
+
+		return choice, value
+
+class WeightedGCNPolicyNetwork(nn.Module):
+	def __init__(self, d=3):
+		super(WeightedGCNPolicyNetwork, self).__init__()
+		self.conv1 = GCNConv(d,  16, improved=True, cached=True)
+		self.conv2 = GCNConv(16, 16, improved=True, cached=True)
+		self.conv3 = GCNConv(16,  1, improved=True, cached=True)
+		self.fc    = nn.Linear(16, 1)
+
+	def forward(self, graph):
+		x, edges, edge_feat, choices = graph.x, graph.edge_index, graph.edge_attr, graph.y
+
+		x = self.conv1(x, edges, edge_feat)
+		x = F.relu(x)
+		x = self.conv2(x, edges, edge_feat)
+		x = F.relu(x)
+
+		c = self.conv3(x, edges, edge_feat)
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 

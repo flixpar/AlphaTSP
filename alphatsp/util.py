@@ -16,6 +16,8 @@ def get_policy_network(network_type):
 		return alphatsp.solvers.policy_networks.ARMAPolicyNetwork()
 	elif network_type == "pointcnn":
 		return alphatsp.solvers.policy_networks.PointCNNPolicyNetwork()
+	elif network_type == "gcn_weighted":
+		return alphatsp.solvers.policy_networks.WeightedGCNPolicyNetwork()
 	else:
 		raise ValueError("Invalid network type given.")
 
@@ -24,6 +26,8 @@ def get_graph_constructor(construction_type):
 		return alphatsp.solvers.graph_construction.construct_graph_grow
 	elif construction_type == "prune":
 		return alphatsp.solvers.graph_construction.construct_graph_prune
+	elif construction_type == "prune_weighted":
+		return alphatsp.solvers.graph_construction.construct_graph_prune_weighted
 	else:
 		raise ValueError("Invalid graph construction type given.")
 
