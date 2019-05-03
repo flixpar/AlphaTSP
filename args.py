@@ -4,13 +4,12 @@ class Args:
 	D = 2
 
 	mcts_iters = 3000
-	exploration_constant = 0.7
+	exploration_constant = 1.0
 
 	n_train_examples = 10_000
-	n_test_examples  = 50
+	n_test_examples  = 10
 
-	policy_network = "gcn"
-	graph_construction = "grow"
-	weighted_graph = False
+	policy_network = "arma"
+	graph_construction = "prune_weighted"
 
 	n_threads = 8

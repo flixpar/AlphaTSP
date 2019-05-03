@@ -14,7 +14,7 @@ from alphatsp.experiments import (
 
 def main(args):
 	a = Args()
-	if args.experiment == "greedy":
+	if args.experiment == "nearestneighbor":
 		nearestneighbor.run(a)
 	elif args.experiment == "mcts":
 		mcts.run(a)
