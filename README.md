@@ -1,7 +1,7 @@
 # AlphaTSP: Learning a TSP Heuristic Using the AlphaZero Methodology
 Felix Parker and Darius Irani
 
-[AlphaTSP](https://github.com/flixpar/AlphaTSP/blob/master/AlphaTSP.pdf)
+[AlphaTSP: Learning a TSP Heuristic Using the AlphaZero Methodology](https://github.com/flixpar/AlphaTSP/blob/master/AlphaTSP.pdf)
 
 Run with:
 
