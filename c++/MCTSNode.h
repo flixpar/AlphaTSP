@@ -19,12 +19,13 @@ private:
 public:
 	MCTSNode(int n);
 	MCTSNode(MCTSNode* p, std::vector<int> tour, std::set<int> remaining, int n);
-	void expand();
+	std::shared_ptr<MCTSNode> expand();
 	void backprop(float reward);
 	float simulate(std::vector<std::vector<float>> points);
 	std::vector<int> get_tour();
 	bool has_children();
 	bool is_leaf();
+	bool is_expanded();
 	std::shared_ptr<MCTSNode> best_child_score();
 	std::shared_ptr<MCTSNode> best_child_visits();
 	std::shared_ptr<MCTSNode> best_child_uct();

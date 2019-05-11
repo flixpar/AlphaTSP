@@ -13,8 +13,9 @@ MCTSNode::MCTSNode(int n) {
 	this->avg_score = 0.0;
 	this->n = n;
 	this->tour = std::vector<int>();
+	this->tour.push_back(0);
 	this->remaining = std::set<int>();
-	for (int i = 0; i < n; i++)
+	for (int i = 1; i < n; i++)
 		this->remaining.insert(i);
 }
 
@@ -37,6 +38,10 @@ bool MCTSNode::has_children() {
 
 bool MCTSNode::is_leaf() {
 	return this->tour.size() == this->n;
+}
+
+bool MCTSNode::is_expanded() {
+	return this->children.size() == this->remaining.size();
 }
 
 std::vector<int> MCTSNode::get_tour() {
@@ -82,15 +87,22 @@ std::shared_ptr<MCTSNode> MCTSNode::best_child_uct() {
 	return best_node;
 }
 
-void MCTSNode::expand() {
-	for (int k : this->remaining) {
-		std::vector<int> next_tour(this->tour);
-		next_tour.push_back(k);
-		std::set<int> next_remaining(this->remaining);
-		next_remaining.erase(k);
-		std::shared_ptr<MCTSNode> m = std::make_shared<MCTSNode>(this, next_tour, next_remaining, this->n);
-		this->children.push_back(m);
-	}
+std::shared_ptr<MCTSNode> MCTSNode::expand() {
+	std::uniform_int_distribution<> dis(0, this->remaining.size()-1);
+	auto it(this->remaining.begin());
+	advance(it, dis(g));
+	int k = *it;
+
+	std::vector<int> next_tour(this->tour);
+	next_tour.push_back(k);
+
+	std::set<int> next_remaining(this->remaining);
+	next_remaining.erase(k);
+
+	std::shared_ptr<MCTSNode> m = std::make_shared<MCTSNode>(this, next_tour, next_remaining, this->n);
+	this->children.push_back(m);
+
+	return m;
 }
 
 void MCTSNode::backprop(float reward) {

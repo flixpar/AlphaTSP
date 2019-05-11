@@ -77,33 +77,32 @@ int main() {
 std::shared_ptr<MCTSNode> mcts(std::shared_ptr<MCTSNode> rootnode, std::vector<std::vector<float>> points, int iterations) {
 	
 	int n = points.size();
-	std::shared_ptr<MCTSNode> node(rootnode);
 
 	// 1. Begin search
 	for (int it=0; it < iterations; it++) {
 
-		// 2. Selection - use policy to decend until expandable node reached
-		while (node->has_children()) {
-			node = node->best_child_uct();
+		std::shared_ptr<MCTSNode> node(rootnode);
+
+		// 2. Descend
+		while (!node->is_leaf()) {
+			if (!node->is_expanded()) {
+				node = node->expand();
+				break;
+			} else {
+				node = node->best_child_uct();
+			}
 		}
 
-		// 3. Expansion - add nodes to the tree based on available actions
-		node->expand();
+		// 3. Simulate
+		float tour_len = node->simulate(points);
+		float reward = ((2.0 * n) - tour_len) / (2.0 * n);
 
-		for (std::shared_ptr<MCTSNode> child : node->children) {
+		// 4. Backprop
+		node->backprop(reward);
 
-			// 4. Simulation - run through tree to a leaf node, compute value
-			float tour_len = child->simulate(points);
-			float reward = ((2.0 * n) - tour_len) / (2.0 * n);
-
-			// 5. Backpropagation - backprop value from leaf node up the tree
-			child->backprop(reward);
-
-		}
-	
 	}
 
-	// 6. Select and return best child node
+	// 5. Select and return best child node
 	return rootnode->best_child_score();
 
 }
