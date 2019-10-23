@@ -12,7 +12,7 @@ def construct_graph_grow(tsp, tour, remaining):
 		edges[0, i] = tour[i]
 		edges[1, i] = tour[i+1]
 
-	choices = torch.zeros(tsp.n, dtype=torch.uint8)
+	choices = torch.zeros(tsp.n, dtype=torch.bool)
 	choices[remaining] = 1
 
 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
@@ -35,7 +35,7 @@ def construct_graph_prune(tsp, tour, remaining):
 
 	edges = torch.tensor(edges, dtype=torch.long).transpose(0,1)
 
-	choices = torch.zeros(tsp.n, dtype=torch.uint8)
+	choices = torch.zeros(tsp.n, dtype=torch.bool)
 	choices[remaining] = 1
 
 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
@@ -66,7 +66,7 @@ def construct_graph_prune_weighted(tsp, tour, remaining):
 	edges = torch.tensor(edges, dtype=torch.long).transpose(0,1)
 	edge_lengths = torch.tensor(edge_lengths, dtype=torch.float).reshape(-1,1)
 
-	choices = torch.zeros(tsp.n, dtype=torch.uint8)
+	choices = torch.zeros(tsp.n, dtype=torch.bool)
 	choices[remaining] = 1
 
 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
