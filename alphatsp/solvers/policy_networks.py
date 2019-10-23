@@ -195,3 +195,47 @@ class PolicyNetworkTrainer:
 
 	def save_model(self):
 		torch.save(self.model.state_dict(), f"saves/policynet_{self.n_examples_used:06d}.pth")
+
+class SupervisedPolicyNetworkTrainer:
+
+	def __init__(self, model, example_queue):
+
+		self.model = model
+		self.value_loss_fn = nn.MSELoss()
+		self.choice_loss_fn = nn.CrossEntropyLoss()
+		self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=1e-5)
+
+		self.example_queue = example_queue
+		self.losses = []
+		self.n_examples_used = 0
+
+	def train_all(self):
+		while True:
+			if not self.train_queue.empty():
+				return_code = self.train_example()
+				if self.n_examples_used//10000 == 0:
+					self.save_model()
+				if return_code == -1:
+					return
+
+	def train_example(self):
+		self.model.train()
+
+		example = self.example_queue.get()
+		if example is None: return -1
+		graph, choice, value = example["graph"], example["choice"], example["pred_value"]
+
+		pred_choices, pred_value = self.model(graph)
+		loss = self.choice_loss_fn(pred_choices, choice) + 0.2 * self.value_loss_fn(pred_value, value)
+
+		self.losses.append(loss.item())
+
+		self.optimizer.zero_grad()
+		loss.backward()
+		self.optimizer.step()
+
+		self.n_examples_used += 1
+		return 0
+
+	def save_model(self):
+		torch.save(self.model.state_dict(), f"saves/policynet_{self.n_examples_used:06d}.pth")
