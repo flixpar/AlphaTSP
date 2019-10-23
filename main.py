@@ -9,7 +9,8 @@ from alphatsp.experiments import (
 	insertion,
 	policy,
 	parallel,
-	selfplay
+	selfplay,
+	supervised
 )
 
 def main(args):
@@ -30,6 +31,8 @@ def main(args):
 		parallel.run(a)
 	elif args.experiment == "selfplay":
 		selfplay.run(a)
+	elif args.experiment == "supervised":
+		supervised.run(a)
 	else:
 		raise ValueError("Invalid experiment selection.")
 
