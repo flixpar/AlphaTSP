@@ -12,7 +12,9 @@ import matplotlib
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
 
-from multiprocessing import Process, Manager
+import copy
+
+from torch.multiprocessing import Process, Manager
 
 
 def run(args):
@@ -31,7 +33,9 @@ def run(args):
 
 	manager = Manager()
 	train_queue = manager.Queue()
-	parent_conn, child_conn = manager.Pipe(False)
+	shared_dict = manager.dict()
+
+	shared_dict["success"] = False
 
 	producers = []
 	for _ in range(n_threads):
@@ -40,7 +44,7 @@ def run(args):
 	for p in producers:
 		p.start()
 
-	c = Process(target=train, args=(policy_network, train_queue, child_conn, args))
+	c = Process(target=train, args=(policy_network, train_queue, shared_dict, args))
 	c.start()
 
 	for p in producers:
@@ -49,8 +53,13 @@ def run(args):
 
 	c.join()
 
-	train_losses = child_conn.recv()
-	policy_network = child_conn.recv()
+	status = shared_dict["success"]
+	if not status:
+		print("Experiment failed.")
+		return -1
+
+	train_losses = shared_dict["losses"]
+	policy_network = shared_dict["model"]
 
 	# display training loss
 	plt.scatter(x=np.arange(len(train_losses)), y=train_losses, marker='.')
@@ -68,8 +77,9 @@ def generate_examples(n_examples, train_queue, args):
 	return
 
 def train(policy_network, train_queue, connection, args):
-	trainer = PolicyNetworkTrainer(policy_network, train_queue)
+	trainer = SupervisedPolicyNetworkTrainer(policy_network, train_queue)
 	trainer.train_all()
-	connection.send(trainer.losses)
-	connection.send(trainer.model)
+	shared_dict["losses"] = copy.deepcopy(trainer.losses)
+	shared_dict["model"] = copy.deepcopy(trainer.model)
+	shared_dict["success"] = True
 	return

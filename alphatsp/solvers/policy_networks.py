@@ -6,6 +6,10 @@ import torch_geometric
 from torch_geometric.nn import GCNConv, global_mean_pool, ARMAConv, XConv, SAGEConv
 from torch_geometric.data import Data, DataLoader
 
+if torch.cuda.is_available(): device = torch.device("cuda:0")
+else:                         device = torch.device("cpu")
+
+
 class GCNPolicyNetwork(nn.Module):
 	def __init__(self, d=3):
 		super(GCNPolicyNetwork, self).__init__()
@@ -26,7 +30,7 @@ class GCNPolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -75,7 +79,7 @@ class ARMAPolicyNetwork(torch.nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -100,7 +104,7 @@ class SagePolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -125,7 +129,7 @@ class WeightedGCNPolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -150,7 +154,7 @@ class PointCNNPolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -200,7 +204,7 @@ class SupervisedPolicyNetworkTrainer:
 
 	def __init__(self, model, example_queue):
 
-		self.model = model
+		self.model = model.to(device)
 		self.value_loss_fn = nn.MSELoss()
 		self.choice_loss_fn = nn.CrossEntropyLoss()
 		self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=1e-5)
@@ -211,9 +215,9 @@ class SupervisedPolicyNetworkTrainer:
 
 	def train_all(self):
 		while True:
-			if not self.train_queue.empty():
+			if not self.example_queue.empty():
 				return_code = self.train_example()
-				if self.n_examples_used//10000 == 0:
+				if self.n_examples_used%10000 == 0:
 					self.save_model()
 				if return_code == -1:
 					return
@@ -224,8 +228,11 @@ class SupervisedPolicyNetworkTrainer:
 		example = self.example_queue.get()
 		if example is None: return -1
 		graph, choice, value = example["graph"], example["choice"], example["pred_value"]
+		graph = graph.to(device)
 
 		pred_choices, pred_value = self.model(graph)
+		choice, value = torch.tensor([choice], device=device), torch.tensor([value], device=device)
+		pred_choices, pred_value = pred_choices.unsqueeze(0).to(device), pred_value.squeeze(0).to(device)
 		loss = self.choice_loss_fn(pred_choices, choice) + 0.2 * self.value_loss_fn(pred_value, value)
 
 		self.losses.append(loss.item())

@@ -89,15 +89,15 @@ class SelfPlayExampleGenerator(MCTSExampleGenerator):
 
 class NNExampleGenerator:
 
-	def __init__(self, args, example_queue):
+	def __init__(self, example_queue, args):
 		self.args = args
 		self.graph_constructor = get_graph_constructor(args.graph_construction)
 		self.example_queue = example_queue
 		self.n_samples = max(args.N//10, 1)
 
-	def generate_example(self, n_examples):
+	def generate_examples(self, n_examples):
 
-		for _ in range(n_examples//n_samples):
+		for _ in range(n_examples//self.n_samples):
 
 			# generate tsp
 			tsp = TSP(self.args.N, self.args.D)
@@ -107,16 +107,17 @@ class NNExampleGenerator:
 
 			# generate examples
 			remaining = set(range(self.args.N))
-			for i in sorted(random.sample(range(self.args.N), self.n_samples)):
+			for i in sorted(random.sample(range(self.args.N-1), self.n_samples)):
 
 				partial_tour = tour[:i]
 				remaining = remaining - set(partial_tour)
+				r = sorted(list(remaining))
 
-				graph = self.graph_constructor(tsp, partial_tour, list(remaining))
+				graph = self.graph_constructor(tsp, partial_tour, r)
 
 				example = {
 					"graph": graph,
-					"choice": tour[i+1],
+					"choice": r.index(tour[i+1]),
 					"pred_value": tour_len
 				}
-				self.example_queue.put(copy.deepcopy(example))
+				self.example_queue.put(example)
