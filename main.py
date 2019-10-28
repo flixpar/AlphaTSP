@@ -1,43 +1,17 @@
 import argparse
-import multiprocessing as mp
 from args import Args
-from alphatsp.experiments import (
-	nearestneighbor,
-	mcts,
-	exact,
-	gurobi,
-	insertion,
-	policy,
-	parallel,
-	selfplay,
-	supervised
-)
+import importlib
+
+import torch.multiprocessing as mp
+mp.set_sharing_strategy("file_system")
 
 def main(args):
-	a = Args()
-	if args.experiment == "nearestneighbor":
-		nearestneighbor.run(a)
-	elif args.experiment == "mcts":
-		mcts.run(a)
-	elif args.experiment == "exact":
-		exact.run(a)
-	elif args.experiment == "gurobi":
-		gurobi.run(a)
-	elif args.experiment == "insertion":
-		insertion.run(a)
-	elif args.experiment == "policy":
-		policy.run(a)
-	elif args.experiment == "parallel":
-		parallel.run(a)
-	elif args.experiment == "selfplay":
-		selfplay.run(a)
-	elif args.experiment == "supervised":
-		supervised.run(a)
-	else:
-		raise ValueError("Invalid experiment selection.")
+	config = Args()
+	experiment = importlib.import_module(f"alphatsp.experiments.{args.experiment}")
+	experiment.run(config)
 
 if __name__ == "__main__":
-	mp.set_start_method('spawn', force=True)
+	mp.set_start_method("spawn")
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--experiment", type=str, required=True, help="experiment name")
 	args = parser.parse_args()
