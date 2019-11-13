@@ -11,7 +11,7 @@ def main(args):
 	experiment.run(config)
 
 if __name__ == "__main__":
-	mp.set_start_method("spawn")
+	mp.set_start_method("spawn", force=True)
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--experiment", type=str, required=True, help="experiment name")
 	args = parser.parse_args()

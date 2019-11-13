@@ -178,6 +178,9 @@ class PolicyNetworkTrainer:
 		if example is None: return -1
 		graph, choice_probs, value = example["graph"], example["choice_probs"], example["pred_value"]
 
+		graph = Data(**graph)
+		graph = graph.to(device)
+
 		pred_choices, pred_value = self.model(graph)
 		loss = self.loss_fn(pred_choices, choice_probs) + (0.2 * self.loss_fn(pred_value, value))
 
@@ -228,6 +231,8 @@ class SupervisedPolicyNetworkTrainer:
 		example = self.example_queue.get()
 		if example is None: return -1
 		graph, choice, value = example["graph"], example["choice"], example["pred_value"]
+
+		graph = Data(**graph)
 		graph = graph.to(device)
 
 		pred_choices, pred_value = self.model(graph)
