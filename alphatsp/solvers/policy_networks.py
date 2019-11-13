@@ -220,6 +220,8 @@ class SupervisedPolicyNetworkTrainer:
 		while True:
 			if not self.example_queue.empty():
 				return_code = self.train_example()
+				if self.n_examples_used%1000 == 0:
+					print(f"iter={self.n_examples_used}, avg_loss={sum(self.losses[-100:])/100:.4f}")
 				if self.n_examples_used%10000 == 0:
 					self.save_model()
 				if return_code == -1:

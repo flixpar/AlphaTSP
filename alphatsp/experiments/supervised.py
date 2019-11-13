@@ -76,7 +76,7 @@ def generate_examples(n_examples, train_queue, args):
 	generator.generate_examples(n_examples)
 	return
 
-def train(policy_network, train_queue, connection, args):
+def train(policy_network, train_queue, shared_dict, args):
 	trainer = SupervisedPolicyNetworkTrainer(policy_network, train_queue)
 	trainer.train_all()
 	shared_dict["losses"] = copy.deepcopy(trainer.losses)
