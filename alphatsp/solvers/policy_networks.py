@@ -6,6 +6,8 @@ import torch_geometric
 from torch_geometric.nn import GCNConv, global_mean_pool, ARMAConv, XConv, SAGEConv
 from torch_geometric.data import Data, DataLoader
 
+from alphatsp.logger import Logger
+
 if torch.cuda.is_available(): device = torch.device("cuda:0")
 else:                         device = torch.device("cpu")
 
@@ -213,18 +215,21 @@ class SupervisedPolicyNetworkTrainer:
 		self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=1e-5)
 
 		self.example_queue = example_queue
-		self.losses = []
 		self.n_examples_used = 0
+
+		self.logger = Logger()
 
 	def train_all(self):
 		while True:
 			if not self.example_queue.empty():
 				return_code = self.train_example()
-				if self.n_examples_used%1000 == 0:
-					print(f"iter={self.n_examples_used}, avg_loss={sum(self.losses[-100:])/100:.4f}")
-				if self.n_examples_used%10000 == 0:
-					self.save_model()
+				if self.n_examples_used%1000 == 0 and self.n_examples_used!=0:
+					self.logger.print(f"iter={self.n_examples_used}, avg_loss={sum(self.logger.losses[-100:])/100:.4f}")
+				if self.n_examples_used%10000 == 0 and self.n_examples_used!=0:
+					self.logger.save_model(self.model, self.n_examples_used)
 				if return_code == -1:
+					self.logger.save()
+					self.logger.save_model(self.model, "final")
 					return
 
 	def train_example(self):
@@ -242,14 +247,10 @@ class SupervisedPolicyNetworkTrainer:
 		pred_choices, pred_value = pred_choices.unsqueeze(0).to(device), pred_value.squeeze(0).to(device)
 		loss = self.choice_loss_fn(pred_choices, choice) + 0.2 * self.value_loss_fn(pred_value, value)
 
-		self.losses.append(loss.item())
-
 		self.optimizer.zero_grad()
 		loss.backward()
 		self.optimizer.step()
 
+		self.logger.log_loss(loss.item())
 		self.n_examples_used += 1
 		return 0
-
-	def save_model(self):
-		torch.save(self.model.state_dict(), f"saves/policynet_{self.n_examples_used:06d}.pth")

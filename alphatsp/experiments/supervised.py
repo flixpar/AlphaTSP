@@ -8,10 +8,6 @@ from alphatsp.solvers.policy_networks import SupervisedPolicyNetworkTrainer
 import torch
 import numpy as np
 
-import matplotlib
-matplotlib.use("agg")
-import matplotlib.pyplot as plt
-
 import copy
 
 from torch.multiprocessing import Process, Manager
@@ -58,19 +54,6 @@ def run(args):
 		print("Experiment failed.")
 		return -1
 
-	train_losses = shared_dict["losses"]
-	policy_network = shared_dict["model"]
-
-	# display training loss
-	plt.scatter(x=np.arange(len(train_losses)), y=train_losses, marker='.')
-	plt.title("Loss")
-	plt.xlabel("examples")
-	plt.ylabel("loss")
-	plt.savefig("saves/loss_parallel.png")
-
-	# save network
-	torch.save(policy_network.state_dict(), "saves/policy_network.pth")
-
 def generate_examples(n_examples, train_queue, args):
 	generator = NNExampleGenerator(train_queue, args)
 	generator.generate_examples(n_examples)
@@ -79,7 +62,6 @@ def generate_examples(n_examples, train_queue, args):
 def train(policy_network, train_queue, shared_dict, args):
 	trainer = SupervisedPolicyNetworkTrainer(policy_network, train_queue)
 	trainer.train_all()
-	shared_dict["losses"] = copy.deepcopy(trainer.losses)
-	shared_dict["model"] = copy.deepcopy(trainer.model)
+	shared_dict["model"] = copy.deepcopy(trainer.model.cpu())
 	shared_dict["success"] = True
 	return
