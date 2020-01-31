@@ -72,9 +72,9 @@ class Logger:
 			for row in self.eval_scores:
 				csvwriter.writerow(row)
 
-        plt.clf()
+		plt.clf()
 
-        plt.plot(self.losses)
-        plt.xlabel("iterations")
-        plt.ylabel("training loss")
-        plt.savefig(os.path.join(self.path, "losses.png"))
+		plt.plot(self.losses)
+		plt.xlabel("iterations")
+		plt.ylabel("training loss")
+		plt.savefig(os.path.join(self.path, "losses.png"))
