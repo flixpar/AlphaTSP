@@ -65,12 +65,12 @@ class ARMAPolicyNetwork(torch.nn.Module):
 			num_layers=2,
 			shared_weights=True,
 			dropout=0.1,
-			act=None)
+			act=None).to(device)
 
-		self.fc = nn.Linear(16, 1)
+		self.fc = nn.Linear(16, 1).to(device)
 
 	def forward(self, graph):
-		x, edges, choices = graph.x, graph.edge_index, graph.y
+		x, edges, choices = graph['x'], graph['edge_index'], graph['y']
 
 		x = self.conv1(x, edges)
 		x = F.relu(x)
