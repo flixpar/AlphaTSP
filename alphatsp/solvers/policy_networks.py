@@ -81,7 +81,7 @@ class ARMAPolicyNetwork(torch.nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
+		v = global_mean_pool(x, torch.zeros(x.size(0), dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
