@@ -6,7 +6,7 @@ class Args:
 	mcts_iters = 3000
 	exploration_constant = 1.0
 
-	n_train_examples = 10_000
+	n_train_examples = 50_000
 	n_test_examples  = 10
 
 	policy_network = "arma"

@@ -13,7 +13,7 @@ plt.style.use("seaborn")
 
 class Logger:
 
-	def __init__(self, args, enabled=True):
+	def __init__(self, enabled=True):
 		self.logging = enabled
 		if not self.logging:
 			return
@@ -33,9 +33,9 @@ class Logger:
 	def save_model(self, model, iterations):
 		if not self.logging: return
 		if isinstance(iterations, int):
-			fn = os.path.join(self.path, f"policynet_{epoch:07d}.pth")
+			fn = os.path.join(self.path, f"policynet_{iterations:07d}.pth")
 		else:
-			fn = os.path.join(self.path, f"policynet_{epoch}.pth")
+			fn = os.path.join(self.path, f"policynet_{iterations}.pth")
 		torch.save(model.state_dict(), fn)
 		self.print(f"Saved model to: {fn}\n")
 
@@ -65,16 +65,17 @@ class Logger:
 				row = {"it": it, "loss": loss}
 				csvwriter.writerow(row)
 
-		with open(os.path.join(self.path, "eval.csv"), "w") as f:
-			cols = ["it"] + sorted(list(set(self.eval[0].keys()) - set(["it"])))
-			csvwriter = csv.DictWriter(f, cols)
-			csvwriter.writeheader()
-			for row in self.eval_scores:
-				csvwriter.writerow(row)
+		if self.eval:
+			with open(os.path.join(self.path, "eval.csv"), "w") as f:
+				cols = ["it"] + sorted(list(set(self.eval[0].keys()) - set(["it"])))
+				csvwriter = csv.DictWriter(f, cols)
+				csvwriter.writeheader()
+				for row in self.eval_scores:
+					csvwriter.writerow(row)
 
-        plt.clf()
+		plt.clf()
 
-        plt.plot(self.losses)
-        plt.xlabel("iterations")
-        plt.ylabel("training loss")
-        plt.savefig(os.path.join(self.path, "losses.png"))
+		plt.plot(self.losses)
+		plt.xlabel("iterations")
+		plt.ylabel("training loss")
+		plt.savefig(os.path.join(self.path, "losses.png"))
