@@ -6,6 +6,12 @@ import torch_geometric
 from torch_geometric.nn import GCNConv, global_mean_pool, ARMAConv, XConv, SAGEConv
 from torch_geometric.data import Data, DataLoader
 
+from alphatsp.logger import Logger
+
+if torch.cuda.is_available(): device = torch.device("cuda:0")
+else:                         device = torch.device("cpu")
+
+
 class GCNPolicyNetwork(nn.Module):
 	def __init__(self, d=3):
 		super(GCNPolicyNetwork, self).__init__()
@@ -26,7 +32,7 @@ class GCNPolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -59,12 +65,12 @@ class ARMAPolicyNetwork(torch.nn.Module):
 			num_layers=2,
 			shared_weights=True,
 			dropout=0.1,
-			act=None)
+			act=None).to(device)
 
-		self.fc = nn.Linear(16, 1)
+		self.fc = nn.Linear(16, 1).to(device)
 
 	def forward(self, graph):
-		x, edges, choices = graph.x, graph.edge_index, graph.y
+		x, edges, choices = graph['x'], graph['edge_index'], graph['y']
 
 		x = self.conv1(x, edges)
 		x = F.relu(x)
@@ -75,7 +81,7 @@ class ARMAPolicyNetwork(torch.nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(x.size(0), dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -100,7 +106,7 @@ class SagePolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -125,7 +131,7 @@ class WeightedGCNPolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -150,7 +156,7 @@ class PointCNNPolicyNetwork(nn.Module):
 		choice = torch.masked_select(c.squeeze(), choices)
 		choice = F.softmax(choice, dim=0)
 
-		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long))
+		v = global_mean_pool(x, torch.zeros(graph.num_nodes, dtype=torch.long, device=x.device))
 		value = self.fc(v)
 
 		return choice, value
@@ -174,6 +180,9 @@ class PolicyNetworkTrainer:
 		if example is None: return -1
 		graph, choice_probs, value = example["graph"], example["choice_probs"], example["pred_value"]
 
+		graph = Data(**graph)
+		graph = graph.to(device)
+
 		pred_choices, pred_value = self.model(graph)
 		loss = self.loss_fn(pred_choices, choice_probs) + (0.2 * self.loss_fn(pred_value, value))
 
@@ -195,3 +204,53 @@ class PolicyNetworkTrainer:
 
 	def save_model(self):
 		torch.save(self.model.state_dict(), f"saves/policynet_{self.n_examples_used:06d}.pth")
+
+class SupervisedPolicyNetworkTrainer:
+
+	def __init__(self, model, example_queue):
+
+		self.model = model.to(device)
+		self.value_loss_fn = nn.MSELoss()
+		self.choice_loss_fn = nn.CrossEntropyLoss()
+		self.optimizer = torch.optim.Adam(params=self.model.parameters(), lr=1e-5)
+
+		self.example_queue = example_queue
+		self.n_examples_used = 0
+
+		self.logger = Logger()
+
+	def train_all(self):
+		while True:
+			if not self.example_queue.empty():
+				return_code = self.train_example()
+				if self.n_examples_used%1000 == 0 and self.n_examples_used!=0:
+					self.logger.print(f"iter={self.n_examples_used}, avg_loss={sum(self.logger.losses[-100:])/100:.4f}")
+				if self.n_examples_used%10000 == 0 and self.n_examples_used!=0:
+					self.logger.save_model(self.model, self.n_examples_used)
+				if return_code == -1:
+					self.logger.save()
+					self.logger.save_model(self.model, "final")
+					return
+
+	def train_example(self):
+		self.model.train()
+
+		example = self.example_queue.get()
+		if example is None: return -1
+		graph, choice, value = example["graph"], example["choice"], example["pred_value"]
+
+		graph = Data(**graph)
+		graph = graph.to(device)
+
+		pred_choices, pred_value = self.model(graph)
+		choice, value = torch.tensor([choice], device=device), torch.tensor([value], device=device)
+		pred_choices, pred_value = pred_choices.unsqueeze(0).to(device), pred_value.squeeze(0).to(device)
+		loss = self.choice_loss_fn(pred_choices, choice) + 0.2 * self.value_loss_fn(pred_value, value)
+
+		self.optimizer.zero_grad()
+		loss.backward()
+		self.optimizer.step()
+
+		self.logger.log_loss(loss.item())
+		self.n_examples_used += 1
+		return 0

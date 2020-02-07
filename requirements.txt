@@ -2,6 +2,9 @@ torch
 numpy
 matplotlib
 torch_geometric
+torch_sparse
+torch_scatter
+torch_cluster
 scipy
 cython
 tqdm

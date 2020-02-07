@@ -1,6 +1,10 @@
 import torch
 import copy
+import random
+from alphatsp.tsp import TSP
 from alphatsp.solvers.mcts import MCTSNode, MCTSTree
+from alphatsp.solvers import heuristics
+from alphatsp.util import get_graph_constructor
 
 class MCTSExampleGenerator:
 
@@ -82,3 +86,38 @@ class SelfPlayExampleGenerator(MCTSExampleGenerator):
 		mcts_payoff = self.tsp.tour_length(mcts_tour)
 
 		return mcts_tour, mcts_payoff
+
+class NNExampleGenerator:
+
+	def __init__(self, example_queue, args):
+		self.args = args
+		self.graph_constructor = get_graph_constructor(args.graph_construction)
+		self.example_queue = example_queue
+		self.n_samples = max(args.N//10, 1)
+
+	def generate_examples(self, n_examples):
+
+		for _ in range(n_examples//self.n_samples):
+
+			# generate tsp
+			tsp = TSP(self.args.N, self.args.D)
+
+			# solve
+			tour, tour_len = heuristics.nearest_greedy(tsp)
+
+			# generate examples
+			remaining = set(range(self.args.N))
+			for i in sorted(random.sample(range(self.args.N-1), self.n_samples)):
+
+				partial_tour = tour[:i]
+				remaining = remaining - set(partial_tour)
+				r = sorted(list(remaining))
+
+				graph = self.graph_constructor(tsp, partial_tour, r)
+
+				example = {
+					"graph": graph,
+					"choice": r.index(tour[i+1]),
+					"pred_value": tour_len
+				}
+				self.example_queue.put(example)

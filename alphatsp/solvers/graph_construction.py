@@ -17,7 +17,7 @@ def construct_graph_grow(tsp, tour, remaining):
 
 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
 
-	graph = Data(x=x, pos=points, edge_index=edges, y=choices)
+	graph = {"x": x, "pos": points, "edge_index": edges, "edge_attr": edge_lengths, "y": choices}
 	return graph
 
 def construct_graph_prune(tsp, tour, remaining):
@@ -40,7 +40,7 @@ def construct_graph_prune(tsp, tour, remaining):
 
 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
 
-	graph = Data(x=x, pos=points, edge_index=edges, y=choices)
+	graph = {"x": x, "pos": points, "edge_index": edges, "edge_attr": edge_lengths, "y": choices}
 	return graph
 
 def construct_graph_prune_weighted(tsp, tour, remaining):
@@ -71,5 +71,5 @@ def construct_graph_prune_weighted(tsp, tour, remaining):
 
 	x = torch.cat([points, choices.unsqueeze(-1).to(dtype=torch.float)], dim=-1)
 
-	graph = Data(x=x, pos=points, edge_index=edges, edge_attr=edge_lengths, y=choices)
+	graph = {"x": x, "pos": points, "edge_index": edges, "edge_attr": edge_lengths, "y": choices}
 	return graph
